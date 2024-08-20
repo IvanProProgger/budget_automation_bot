@@ -3,3 +3,5 @@ config.py
 approvals.db
 credentials.json
 payments.db
+.idea
+__pycache__

@@ -154,17 +154,11 @@ async def create_and_send_payment_message(approval_id, record, context=None):
 
 async def what_process(update: Update, context: CallbackContext) -> None:
     action_type = update.callback_query.data.split("_")[0]
-
-    # action_handlers = {
-    #     "pay": process_pay,
-    #     "approval": process_approval
-    # }
-    #
-    # await action_handlers[action_type](update, context)
-    if action_type == "approval":
-        await process_approval(update, context)
-    elif action_type == "pay":
-        await process_pay(update, context)
+    action_handlers = {
+        "pay": process_pay,
+        "approval": process_approval
+    }
+    await action_handlers[action_type](update, context)
 
 
 async def process_pay(update: Update, context: CallbackContext) -> None:

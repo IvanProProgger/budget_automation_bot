@@ -1,6 +1,8 @@
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import logging
+from datetime import datetime
+import pytz
 
 from config import GOOGLE_SHEETS_SPREADSHEET_ID, GOOGLE_SHEETS_CREDENTIALS_FILE
 
@@ -8,10 +10,19 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
+def get_today_moscow_time():
+    """
+    Получает сегодняшний день в формате дд.мм.гггг по московскому времени.
+    """
+    moscow_tz = pytz.timezone('Europe/Moscow')  # Часовой пояс Москвы
+    today = datetime.now(moscow_tz)  # Текущая дата и время по московскому времени
+    formatted_date = today.strftime('%d.%m.%Y')  # Форматирует дату в нужный формат
+    return formatted_date
+
+
 def create_sheets_service():
     """Авторизация и получение объекта Google Sheets API."""
-    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/spreadsheets",
-             "https://www.googleapis.com/auth/drive.file", "https://www.googleapis.com/auth/drive"]
+    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
     creds = ServiceAccountCredentials.from_json_keyfile_name(GOOGLE_SHEETS_CREDENTIALS_FILE, scope)
     gc = gspread.authorize(creds)
     logger.info("Успешная инициализация службы Google Sheets")
@@ -28,11 +39,22 @@ def add_payment_to_sheet(gc, payment_info):
         logger.error(f"Ошибка при открытии или доступе к листу: {e}")
         return
 
-    months = payment_info['period_start_date'].split('-')[1]
-    total_amount = payment_info['amount'] / int(months)
-    row_data = [
-        f"Дата оплаты={payment_info['period_start_date']}",
-        f"Сумма={total_amount}"
-    ]
-    worksheet.append_row(row_data)
-    logger.info(f"Добавлена строка: {row_data}")
+    today_date = get_today_moscow_time()
+    months = payment_info['period'].split(' ')
+    total_sum = payment_info['amount'] / len(months)
+    for month in months:
+        row_data = [
+            today_date,
+            total_sum,
+            payment_info['expense_item'],
+            payment_info['expense_group'],
+            payment_info['partner'],
+            payment_info['comment'],
+            month,
+            payment_info['payment_method'],
+            (int(today_date[3:5]) - 1) // 3 + 1,
+            (int(month[3:5]) - 1) // 3 + 1
+        ]
+        worksheet.append_row(row_data)
+
+        logger.info(f"Добавлена строка: {row_data}")

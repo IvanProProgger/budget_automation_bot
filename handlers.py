@@ -1,9 +1,12 @@
 import logging
 import re
+
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CallbackContext
 from db import db
 import textwrap
+
+from sheets import create_sheets_service, add_payment_to_sheet
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -179,6 +182,8 @@ async def process_pay(update: Update, context: CallbackContext) -> None:
         await db.update_row_by_id(approval_id, {"status": "Paid"})
         await update.callback_query.edit_message_text(text=f"Заявка {approval_id} оплачена.",
                                                       reply_markup=InlineKeyboardMarkup([]))
+    gc = create_sheets_service()
+    add_payment_to_sheet(gc, record)
 
 
 async def send_message_to_chats(chat_ids, text, context, reply_markup=None):
@@ -263,6 +268,7 @@ async def approve_payment(context, approval_id, initiator_id, record, department
         async with db:
             await db.update_row_by_id(approval_id, {"approvals_received": 2, "status": "Approved"})
             record = await db.find_row_by_id(approval_id)
+
         await update.callback_query.edit_message_text(text='Запрос на платеж одобрен и готов к оплате.',
                                                       reply_markup=InlineKeyboardMarkup([]))
         await create_and_send_payment_message(approval_id, record, context)

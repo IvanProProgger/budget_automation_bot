@@ -61,15 +61,16 @@ async def submit_record_command(update: Update, context: CallbackContext) -> Non
         await create_and_send_approval_message(approval_id, record_dict, "head", context=context)
 
 
-async def reject_record_command(context: CallbackContext, approval_id) -> None:
+async def reject_record_command(update: Update, context: CallbackContext) -> None:
     """
     Меняет в базе данных статус платежа на отклонён('Rejected')
      и отправляет сообщение об отменее ранее одобренного платежа.
     """
+    row_id = context.args
     async with db:
-        await db.update_row_by_id(approval_id, {"status": "Rejected"})
+        await db.update_row_by_id(row_id, {"status": "Rejected"})
     await send_message_to_chats(await chat_ids_department("all"),
-                                f"Заявка {approval_id} отклонена.", context)
+                                f"Заявка {row_id} отклонена.", context)
 
 
 async def create_and_send_approval_message(approval_id, record, department, context=None):

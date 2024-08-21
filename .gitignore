@@ -1,7 +1,5 @@
 venv
 config.py
-approvals.db
 credentials.json
-payments.db
 .idea
-__pycache__
+/__pycache__/

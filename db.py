@@ -22,26 +22,30 @@ class ApprovalDB:
 
     async def create_table(self):
         """Создает таблицу 'approvals', если она еще не существует."""
-        await self.cursor.execute('''CREATE TABLE IF NOT EXISTS approvals
-                                      (id INTEGER PRIMARY KEY, 
-                                       amount REAL, 
-                                       expense_item TEXT, 
-                                       expense_group TEXT, 
-                                       partner TEXT, 
-                                       period TEXT, 
-                                       payment_method TEXT, 
-                                       comment TEXT,
-                                       approvals_needed INTEGER, 
-                                       approvals_received INTEGER,
-                                       status TEXT)''')
-        await self.conn.commit()
-        logging.info("Таблица 'approvals' создана.")
+        await self.cursor.execute('SELECT name FROM sqlite_master WHERE type="table" AND name="approvals";')
+        table_exists = await self.cursor.fetchone()
+        if not table_exists:
+            await self.cursor.execute('''CREATE TABLE approvals
+                                          (id INTEGER PRIMARY KEY, 
+                                           amount REAL, 
+                                           expense_item TEXT, 
+                                           expense_group TEXT, 
+                                           partner TEXT, 
+                                           period TEXT, 
+                                           payment_method TEXT, 
+                                           comment TEXT,
+                                           approvals_needed INTEGER, 
+                                           approvals_received INTEGER,
+                                           status TEXT)''')
+            await self.conn.commit()
+            logging.info("Таблица 'approvals' создана.")
+        else:
+            logging.info("Таблица 'approvals' уже существует.")
 
     async def insert_record(self, record):
-        approvals_needed_value = 1 if float(record["amount"]) < 50000 else 2
-        record["approvals_needed"] = approvals_needed_value
-        record["approvals_received"] = 0
-        record["status"] = "Created"
+        """
+        Вставляет новую запись в таблицу 'approvals'.
+        """
         try:
             await self.cursor.execute(
                 'INSERT INTO approvals (amount, expense_item, expense_group, partner, period, payment_method, comment, '
@@ -55,18 +59,6 @@ class ApprovalDB:
             logging.error(f"Failed to insert record: {e}")
             raise
 
-    async def update_row_by_id(self, approval_id, updates):
-        try:
-            await self.cursor.execute(
-                'UPDATE approvals SET approvals_received =?, status =? WHERE id =?',
-                [updates.get("approvals_received"), updates.get("status"), approval_id]
-            )
-            await self.conn.commit()
-            logging.info("Record updated successfully.")
-        except Exception as e:
-            logging.error(f"Failed to update record: {e}")
-            raise
-
     async def find_row_by_id(self, approval_id):
         try:
             result = await self.cursor.execute('SELECT * FROM approvals WHERE id =?', (approval_id,))
@@ -78,6 +70,31 @@ class ApprovalDB:
         except Exception as e:
             logging.error(f"Failed to fetch record: {e}")
             return None
+
+    async def update_row_by_id(self, approval_id, updates):
+        try:
+            await self.cursor.execute(
+                'UPDATE approvals SET {} WHERE id = ?'.format(', '.join([f"{key} = ?" for key in updates.keys()])),
+                list(updates.values()) + [approval_id]
+            )
+            await self.conn.commit()
+            logging.info("Record updated successfully.")
+        except Exception as e:
+            logging.error(f"Failed to update record: {e}. Approval ID: {approval_id}, Updates: {updates}")
+            raise
+
+    async def find_not_processed_rows(self):
+        try:
+            result = await self.cursor.execute('SELECT * FROM approvals WHERE status = ?', ("Not processed",))
+            rows = await result.fetchall()
+            if not rows:
+                return []
+            return [dict(zip(('id', 'amount', 'expense_item', 'expense_group', 'partner', 'period', 'payment_method',
+                              'comment', 'approvals_needed', 'approvals_received', 'status'),
+                             row)) for row in rows]
+        except Exception as e:
+            logging.error(f"Failed to fetch records: {e}")
+            return []
 
 
 db = ApprovalDB()

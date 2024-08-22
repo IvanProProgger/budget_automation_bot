@@ -1,13 +1,14 @@
 import aiosqlite
 import logging
 
+from config import DATABASE_PATH
 
 logging.basicConfig(level=logging.INFO)
 
 
 class ApprovalDB:
     def __init__(self):
-        self.db_file = "./approvals.db"
+        self.db_file = DATABASE_PATH
 
     async def __aenter__(self):
         self.conn = await aiosqlite.connect(self.db_file)

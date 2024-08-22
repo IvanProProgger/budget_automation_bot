@@ -14,9 +14,9 @@ def get_today_moscow_time():
     """
     Получает сегодняшний день в формате дд.мм.гггг по московскому времени.
     """
-    moscow_tz = pytz.timezone('Europe/Moscow')  # Часовой пояс Москвы
-    today = datetime.now(moscow_tz)  # Текущая дата и время по московскому времени
-    formatted_date = today.strftime('%d.%m.%Y')  # Форматирует дату в нужный формат
+    moscow_tz = pytz.timezone('Europe/Moscow')
+    today = datetime.now(moscow_tz)
+    formatted_date = today.strftime('%d.%m.%Y')
     return formatted_date
 
 

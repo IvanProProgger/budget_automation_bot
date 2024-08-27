@@ -92,7 +92,6 @@ async def submit_record_command(update: Update, context: CallbackContext) -> Non
     try:
         async with db:
             approval_id = await db.insert_record(record_dict)
-            record = await db.get_row_by_id(approval_id)
     except Exception as e:
         await update.message.reply_text(f'Произошла ошибка при добавлении счёта в базу данных. {e}')
         return

@@ -4,6 +4,8 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 import logging
 import re
 
+from handlers import submit_record_command
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
@@ -198,7 +200,8 @@ async def confirm_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         final_command = context.user_data.get('final_command', '')
         if final_command:
             await context.bot.send_message(chat_id=query.message.chat_id, text=f"/submit_record {final_command}")
-        await query.edit_message_text(text="Информация о счёте успешно отправлена.")
+        await query.edit_message_text(text="Информация о счёте готова к отправке. Скопируйте данное сообщение и "
+                                           "пришлите в чат")
     elif query.data == "Отмена":
         await query.edit_message_text(text="Отмена операции.")
     return ConversationHandler.END

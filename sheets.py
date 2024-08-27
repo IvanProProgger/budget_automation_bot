@@ -41,8 +41,8 @@ def add_payment_to_sheet(gc, payment_info):
 
     today_date = get_today_moscow_time()
     months = payment_info['period'].split(' ')
+    logger.info(months)
     total_sum = payment_info['amount'] / len(months)
-    logger.info(f"{months}")
     for month in months:
         row_data = [
             today_date,

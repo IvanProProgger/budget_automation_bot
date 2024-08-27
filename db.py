@@ -33,11 +33,12 @@ class ApprovalDB:
                                            expense_group TEXT, 
                                            partner TEXT, 
                                            comment TEXT,
-                                           payment_method TEXT, 
                                            period TEXT, 
+                                           payment_method TEXT, 
                                            approvals_needed INTEGER, 
                                            approvals_received INTEGER,
-                                           status TEXT)''')
+                                           status TEXT,
+                                           approved_by TEXT)''')
             await self.conn.commit()
             logging.info("Таблица 'approvals' создана.")
         else:
@@ -50,7 +51,7 @@ class ApprovalDB:
         try:
             await self.cursor.execute(
                 'INSERT INTO approvals (amount, expense_item, expense_group, partner, comment, period, payment_method,'
-                'approvals_needed, approvals_received, status) VALUES (?,?,?,?,?,?,?,?,?,?)',
+                'approvals_needed, approvals_received, status, approved_by) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
                 list(record.values())
             )
             await self.conn.commit()
@@ -60,28 +61,44 @@ class ApprovalDB:
             logging.error(f"Failed to insert record: {e}")
             raise
 
-    async def get_row_by_id(self, approval_id):
+    async def get_row_by_id(self, row_id):
         try:
-            result = await self.cursor.execute('SELECT * FROM approvals WHERE id =?', (approval_id,))
+            result = await self.cursor.execute('SELECT * FROM approvals WHERE id=?', (row_id,))
             row = await result.fetchone()
             if row is None:
                 return None
             return dict(zip(('id', 'amount', 'expense_item', 'expense_group', 'partner', 'comment', 'period',
-                             'payment_method', 'approvals_needed', 'approvals_received', 'status'), row))
+                             'payment_method', 'approvals_needed', 'approvals_received', 'status', 'approved_by'), row))
         except Exception as e:
             logging.error(f"Failed to fetch record: {e}")
             return None
 
-    async def update_row_by_id(self, approval_id, updates):
+    async def update_row_by_id(self, row_id, updates):
         try:
             await self.cursor.execute(
                 'UPDATE approvals SET {} WHERE id = ?'.format(', '.join([f"{key} = ?" for key in updates.keys()])),
-                list(updates.values()) + [approval_id]
+                list(updates.values()) + [row_id]
             )
             await self.conn.commit()
             logging.info("Record updated successfully.")
         except Exception as e:
-            logging.error(f"Failed to update record: {e}. Approval ID: {approval_id}, Updates: {updates}")
+            logging.error(f"Failed to update record: {e}. Approval ID: {row_id}, Updates: {updates}")
+            raise
+
+    async def concat_column_by_id(self, row_id, column_name, new_value):
+        try:
+            current_row = await self.get_row_by_id(row_id)
+            current_value = current_row.get(column_name)
+
+            if current_value is None or current_value.strip() == '':
+                await db.update_row_by_id(row_id, {column_name: new_value})
+            else:
+                await db.update_row_by_id(row_id, {column_name: current_value + ' ' + new_value})
+            await self.conn.commit()
+            logging.info(f"Column '{column_name}' appended to existing value for approval ID: {row_id}")
+        except Exception as e:
+            logging.error(
+                f"Failed to update column: {e}. Approval ID: {row_id}, Column: {column_name}, New value: {new_value}")
             raise
 
     async def find_not_processed_rows(self):
@@ -91,7 +108,7 @@ class ApprovalDB:
             if not rows:
                 return []
             return [dict(zip(('id', 'amount', 'expense_item', 'expense_group', 'partner', 'period', 'payment_method',
-                              'comment', 'approvals_needed', 'approvals_received', 'status'),
+                              'comment', 'approvals_needed', 'approvals_received', 'status', 'approved_by'),
                              row)) for row in rows]
         except Exception as e:
             logging.error(f"Failed to fetch records: {e}")

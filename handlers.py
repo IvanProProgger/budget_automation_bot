@@ -85,18 +85,19 @@ async def submit_record_command(update: Update, context: CallbackContext) -> Non
         "payment_method": match.group(7),
         "approvals_needed": 1 if float(match.group(1)) < 50000 else 2,
         "approvals_received": 0,
-        "status": "Not processed"
+        "status": "Not processed",
+        "approved_by": None
     }
 
     try:
         async with db:
             approval_id = await db.insert_record(record_dict)
+            record = await db.get_row_by_id(approval_id)
     except Exception as e:
         await update.message.reply_text(f'Произошла ошибка при добавлении счёта в базу данных. {e}')
         return
 
     initiator_chat_id = update.message.chat.id
-    user = '@' + update.message.from_user.username
     await create_and_send_approval_message(approval_id, initiator_chat_id, record_dict, "head",
                                            context=context)
 
@@ -119,8 +120,7 @@ async def reject_record_command(update: Update, context: CallbackContext) -> Non
     row_id = row_id[0]
 
     async with db:
-        await db.cursor.execute('SELECT id FROM approvals WHERE id = ?', (row_id,))
-        result = await db.cursor.fetchone()
+        result = await db.get_row_by_id(row_id)
 
         if not result:
             await update.message.reply_text(f"Запись с id {row_id} не найдена.")
@@ -153,7 +153,6 @@ async def create_and_send_approval_message(approval_id, initiator_chat_id, recor
 
 async def create_and_send_payment_message(approval_id, approved_users, record, context=None):
     """Создание кнопок "Оплачено", создание и отправка сообщения для одобрения заявки."""
-    approved_users = ' ,'.join(approved_users)
     keyboard = [
         [InlineKeyboardButton("Оплачено", callback_data=f"pay_{approval_id}")]
     ]
@@ -208,11 +207,11 @@ async def process_approval(update: Update, context: CallbackContext) -> None:
         department, action = response_list[1:3]
         approval_id = response_list[3]
         initiator_id = response_list[4]
-        approved_users = []
         approved_user = "@" + update.callback_query.from_user.username
-        approved_users.append(approved_user)
         async with db:
+            await db.concat_column_by_id(approval_id, 'approved_by', approved_user)
             record = await db.get_row_by_id(approval_id)
+            approved_users = ', '.join(record.get('approved_by', '').split())
         if not record:
             await update.message.reply_text('Запись не найдена.')
             return
@@ -235,18 +234,19 @@ async def handle_head_approval(context, approval_id, initiator_id, approved_user
 async def reject_payment(context, approval_id, initiator_id, approved_users, department, update: Update) -> None:
     """Отправка сообщения об отклонении платежа и изменение статуса платежа."""
     if department == "finance":
+        approved_by = approved_users.split(', ')
         async with db:
-            await db.update_row_by_id(approval_id, {"approvals_received": 1, "status": "Rejected"})
+            await db.update_row_by_id(approval_id, {"approvals_received": 1, "status": "Rejected",
+                                                    "approved_by": approved_by[0]})
         await update.callback_query.edit_message_text(text=f"Заявка {approval_id} отклонена.",
                                                       reply_markup=InlineKeyboardMarkup([]))
-        await send_message_to_chats(initiator_id, f"Заявка {approval_id} отклонена {' ,'.join(approved_users)}.",
-                                    context)
+        await context.bot.send_message(initiator_id, f"Заявка {approval_id} отклонена {approved_by[1]}.")
     else:
         async with db:
             await db.update_row_by_id(approval_id, {"approvals_received": 0, "status": "Rejected"})
         await update.callback_query.edit_message_text(text=f"Заявка {approval_id} отклонена руководителем "
                                                            f"департамента.", reply_markup=InlineKeyboardMarkup([]))
-        await context.bot.send_message(initiator_id, f"Заявка {approval_id} отклонена {approved_users[0]}.")
+        await context.bot.send_message(initiator_id, f"Заявка {approval_id} отклонена {approved_users}.")
 
 
 async def approve_payment(context, approval_id, initiator_id, approved_users, record, department, update: Update):
@@ -272,7 +272,7 @@ async def approve_payment(context, approval_id, initiator_id, approved_users, re
             async with db:
                 await db.update_row_by_id(approval_id, {"approvals_received": 1, "status": "Approved"})
                 record = await db.get_row_by_id(approval_id)
-            await update.callback_query.edit_message_text(text='Запрос на платеж одобрен и готов к оплате.',
+            await update.callback_query.edit_message_text(text='Запрос на платеж одобрен. Заявка готова к оплате.',
                                                           reply_markup=InlineKeyboardMarkup([]))
             await create_and_send_payment_message(approval_id, approved_users, record, context)
 
@@ -281,7 +281,7 @@ async def approve_payment(context, approval_id, initiator_id, approved_users, re
             await db.update_row_by_id(approval_id, {"approvals_received": 2, "status": "Approved"})
             record = await db.get_row_by_id(approval_id)
 
-        await update.callback_query.edit_message_text(text='Запрос на платеж одобрен. Платёж готов к оплате.',
+        await update.callback_query.edit_message_text(text='Запрос на платеж одобрен. Заявка готова к оплате.',
                                                       reply_markup=InlineKeyboardMarkup([]))
         await create_and_send_payment_message(approval_id, approved_users, record, context)
 

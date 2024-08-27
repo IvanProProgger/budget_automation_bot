@@ -32,9 +32,9 @@ class ApprovalDB:
                                            expense_item TEXT, 
                                            expense_group TEXT, 
                                            partner TEXT, 
-                                           period TEXT, 
-                                           payment_method TEXT, 
                                            comment TEXT,
+                                           payment_method TEXT, 
+                                           period TEXT, 
                                            approvals_needed INTEGER, 
                                            approvals_received INTEGER,
                                            status TEXT)''')
@@ -49,7 +49,7 @@ class ApprovalDB:
         """
         try:
             await self.cursor.execute(
-                'INSERT INTO approvals (amount, expense_item, expense_group, partner, period, payment_method, comment, '
+                'INSERT INTO approvals (amount, expense_item, expense_group, partner, comment, period, payment_method,'
                 'approvals_needed, approvals_received, status) VALUES (?,?,?,?,?,?,?,?,?,?)',
                 list(record.values())
             )
@@ -60,14 +60,14 @@ class ApprovalDB:
             logging.error(f"Failed to insert record: {e}")
             raise
 
-    async def find_row_by_id(self, approval_id):
+    async def get_row_by_id(self, approval_id):
         try:
             result = await self.cursor.execute('SELECT * FROM approvals WHERE id =?', (approval_id,))
             row = await result.fetchone()
             if row is None:
                 return None
-            return dict(zip(('id', 'amount', 'expense_item', 'expense_group', 'partner', 'period', 'payment_method',
-                             'comment', 'approvals_needed', 'approvals_received', 'status'), row))
+            return dict(zip(('id', 'amount', 'expense_item', 'expense_group', 'partner', 'comment', 'period',
+                             'payment_method', 'approvals_needed', 'approvals_received', 'status'), row))
         except Exception as e:
             logging.error(f"Failed to fetch record: {e}")
             return None
@@ -99,4 +99,3 @@ class ApprovalDB:
 
 
 db = ApprovalDB()
-

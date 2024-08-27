@@ -2,6 +2,7 @@ from telegram import Update, ForceReply, InlineKeyboardButton, InlineKeyboardMar
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ConversationHandler, ContextTypes, \
     CallbackQueryHandler
 import logging
+import re
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -10,15 +11,8 @@ INPUT_SUM, INPUT_ITEM, INPUT_GROUP, INPUT_PARTNER, INPUT_COMMENT, INPUT_DATES, I
     8)
 
 items = [
-    "Организация мероприятий",
-    "Рекламные кампании",
-    "Digital кампании",
-    "Спонсорство и партнерство",
-    "PR и работа со СМИ",
-    "Продакшн",
-    "Стратегические проекты",
-    "Мерчендайзинг и подарки",
-    "Административные расходы",
+    "Организация мероприятий", "Рекламные кампании", "Digital кампании", "Спонсорство и партнерство",
+    "PR и работа со СМИ", "Продакшн", "Стратегические проекты", "Мерчендайзинг и подарки", "Административные расходы",
     "CRM Маркетинг"
 ]
 
@@ -39,7 +33,8 @@ groups = ['ASO', 'ODDS', 'SCORES24', 'AppsFlyer', 'Sports.ru', 'Legal Bet', 'С�
           'Торпедо_Реализация спонсорских прав', 'Торпедо_Создание аудио и видео контента',
           'Заказ промо одежды и сувенирной продукции', 'Закупка оборудования и программного обеспечения',
           'Управленческие расходы (такси, доставка, курьеры)',
-          'Торпедо_Производство рекламных материалов (в т.ч. наградная продукция)']
+          'Торпедо_Производство рекламных материалов (в т.ч. наградная продукция)'
+          ]
 
 partners = ['РК', 'нет', 'Сами', 'Alfa', '2Gis', 'Manna', 'Чужой', 'Gudai', '3Snet', 'наш ВК', 'Маслов',
             'Гасилин', 'Odds.ru', 'наш инст', 'Legalbet', 'ODNAZHDY', 'Skantrup', 'Вагабонди', 'Sports.ru',
@@ -48,36 +43,12 @@ partners = ['РК', 'нет', 'Сами', 'Alfa', '2Gis', 'Manna', 'Чужой',
             'mobupps.com', 'наш телеграм', 'AznarDnevnik', 'PremierLeads', 'Максим Фролов', 'DnevnikFanata',
             'Юрий Кузьмичев', 'Артур Бегларян', 'Карен Арутюнян', 'AndreyShipovki', 'Михаил Борзыкин',
             'Советский спорт', 'DmitryKuznetsov', 'Богдан Тимошенко', 'Денис Фломастеров', 'FilippKudryavtsev',
-            'Александр Шевченко']
+            'Александр Шевченко'
+            ]
 
 payment_types = [
-    'Наличные',
-    'Безналичные',
-    'Криптовалюта'
+    'Наличные', 'Безналичные', 'Криптовалюта'
 ]
-
-
-async def enter_info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Начало диалога. Ввод суммы"""
-    initiator_id = await update.message.chat_id
-    await update.message.reply_text(
-        'Введите сумму:',
-        reply_markup=ForceReply(selective=True),
-    )
-    return INPUT_SUM
-
-
-async def input_sum(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Обработка ввода суммы и выбор категории."""
-    user_sum = update.message.text
-    context.user_data['sum'] = user_sum
-    await update.message.reply_text(f"Вы ввели сумму: {user_sum}")
-
-    keyboard = create_keyboard(items)
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
-    await update.message.reply_text('Выберите статью расхода:', reply_markup=reply_markup)
-    return INPUT_ITEM
 
 
 def create_keyboard(massive):
@@ -93,6 +64,32 @@ def create_keyboard(massive):
             keyboard.append(current_row_list)
             current_row_list = []
     return keyboard
+
+
+async def enter_record(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Начало диалога. Ввод суммы"""
+    await update.message.reply_text(
+        'Введите сумму:',
+        reply_markup=ForceReply(selective=True),
+    )
+    return INPUT_SUM
+
+
+async def input_sum(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Обработка ввода суммы и выбор категории."""
+    user_sum = update.message.text
+    pattern = r'^[0-9]+(?:\.[0-9]+)?$'
+    if not re.fullmatch(pattern, user_sum):
+        await update.message.reply_text("Некорректная сумма. Попробуйте ещё раз.")
+        return ConversationHandler.END
+    context.user_data['sum'] = user_sum
+    await update.message.reply_text(f"Вы ввели сумму: {user_sum}")
+
+    keyboard = create_keyboard(items)
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await update.message.reply_text('Выберите статью расхода:', reply_markup=reply_markup)
+    return INPUT_ITEM
 
 
 async def input_item(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:

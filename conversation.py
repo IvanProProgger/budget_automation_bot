@@ -1,16 +1,16 @@
 from telegram import Update, ForceReply, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ConversationHandler, ContextTypes, \
-    CallbackQueryHandler
+from telegram.ext import ConversationHandler, ContextTypes, CallbackContext
+
 import logging
 import re
 
-from handlers import submit_record_command
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-INPUT_SUM, INPUT_ITEM, INPUT_GROUP, INPUT_PARTNER, INPUT_COMMENT, INPUT_DATES, INPUT_PAYMENT_TYPE, CONFIRM_COMMAND = range(
-    8)
+
+INPUT_SUM, INPUT_ITEM, INPUT_GROUP, INPUT_PARTNER, INPUT_COMMENT, INPUT_DATES, INPUT_PAYMENT_TYPE, CONFIRM_COMMAND = (
+    range(8))
 
 items = [
     "Организация мероприятий", "Рекламные кампании", "Digital кампании", "Спонсорство и партнерство",
@@ -131,8 +131,6 @@ async def input_partner(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     query = update.callback_query
     await query.answer()
     partner = partners[int(query.data)]
-    if partner == "Отмена":
-        return await stop_dialog(update, query)
     context.user_data['partner'] = partner
     await query.edit_message_text(f"Вы ввели партнёра: {partner}")
     await query.message.reply_text(
@@ -207,9 +205,13 @@ async def confirm_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     return ConversationHandler.END
 
 
-async def stop_dialog(update: Update, query) -> int:
-    if query.data:
-        await query.edit_message_text('Диалог прерван')
-    else:
-        await update.message.reply_text('Диалог прерван.')
-    return ConversationHandler.END
+async def stop_dialog(update: Update, context: CallbackContext) -> int:
+    """Обработчик команды /stop"""
+    await context.bot.edit_message_text('Диалог прерван.', reply_markup=None)
+    # await update.message.reply_text('Диалог прерван.')
+    # message = update.effective_message
+    # logger.info(message)
+    # if message and message.reply_to_message and message.reply_to_message.reply_markup:
+    #     await message.edit_reply_markup(reply_markup=None)
+    #
+    # return ConversationHandler.END

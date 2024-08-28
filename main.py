@@ -1,7 +1,7 @@
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ConversationHandler, MessageHandler, filters
 
 from config import TELEGRAM_BOT_TOKEN
-from conversation import enter_record, INPUT_SUM, input_sum, input_item, input_group, input_partner, input_comment, \
+from conversation import enter_record, input_sum, input_item, input_group, input_partner, input_comment, \
     input_dates, input_payment_type, confirm_command, stop_dialog
 from handlers import start_command, submit_record_command, error_callback, reject_record_command, \
     show_not_processed, process_pay, process_approval

@@ -66,8 +66,8 @@ async def submit_record_command(update: Update, context: CallbackContext) -> Non
         await update.message.reply_text('Необходимо указать данные для платежа.')
         return
 
-    pattern = (r'^((?:0|[1-9]\d*)(?:\.\d+)?)\s*,\s*([^,]+)\s*,\s*([^,]+)\s*,\s*([^,]+)\s*,\s*([^,]+)\s*,\s*((?:\d{'
-               r'2}\.\d{2}\.\d{4}\s*){2,})\s*,\s*([^,]+)$')
+    pattern = (r'^((?:0|[1-9]\d*)(?:\.\d+)?)\s*,\s*([^,]+)\s*,\s*([^,]+)\s*,\s*([^,]+)\s*,\s*([^,]+)\s*,\s*'
+               r'((?:\d{2}\.\d{2}\.\d{4}\s*){1,})\s*,\s*([^,]+)$')
     message = ' '.join(context.args)
     match = re.match(pattern, message)
 

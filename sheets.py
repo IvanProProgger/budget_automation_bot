@@ -59,3 +59,30 @@ def add_payment_to_sheet(gc, payment_info):
         worksheet.append_row(row_data)
 
         logger.info(f"Добавлена строка: {row_data}")
+
+
+import pandas as pd
+
+def get_data(gc):
+    spreadsheet = gc.open_by_key(GOOGLE_SHEETS_SPREADSHEET_ID)
+    worksheet = spreadsheet.get_worksheet_by_id("1704691432")
+    df = pd.DataFrame(worksheet.get_all_records())
+    unique_items = df['Статья'].unique()
+
+    data_structure = {}
+
+    for _, row in df.iterrows():
+        category = row['Статья']
+        group = row['Группа']
+        partner = row['Партнер']
+
+        if category not in data_structure:
+            data_structure[category] = {}
+
+        if group not in data_structure[category]:
+            data_structure[category][group] = []
+
+        data_structure[category][group].append(partner)
+
+    return data_structure, unique_items
+

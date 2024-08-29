@@ -85,21 +85,6 @@ class ApprovalDB:
             logging.error(f"Failed to update record: {e}. Approval ID: {row_id}, Updates: {updates}")
             raise
 
-    async def concat_column_by_id(self, row_id, column_name, new_value):
-        try:
-            current_row = await self.get_row_by_id(row_id)
-            current_value = current_row.get(column_name)
-
-            if current_value is None or current_value.strip() == '':
-                await db.update_row_by_id(row_id, {column_name: new_value})
-            else:
-                await db.update_row_by_id(row_id, {column_name: current_value + ' ' + new_value})
-            await self.conn.commit()
-            logging.info(f"Column '{column_name}' appended to existing value for approval ID: {row_id}")
-        except Exception as e:
-            logging.error(
-                f"Failed to update column: {e}. Approval ID: {row_id}, Column: {column_name}, New value: {new_value}")
-            raise
 
     async def find_not_processed_rows(self):
         try:

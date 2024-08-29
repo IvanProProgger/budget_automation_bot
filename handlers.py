@@ -208,9 +208,13 @@ async def process_approval(update: Update, context: CallbackContext) -> None:
         initiator_id = response_list[4]
         approved_user = "@" + update.callback_query.from_user.username
         async with db:
-            await db.concat_column_by_id(approval_id, 'approved_by', approved_user)
             record = await db.get_row_by_id(approval_id)
-            approved_users = ', '.join(record.get('approved_by', '').split())
+            approved_by_data = record["approved_by"]
+            if approved_by_data:
+                approved_by_data = f"{approved_by_data} {approved_user}"
+                await db.update_row_by_id(approval_id, {"approved_by": approved_by_data})
+            else:
+                approved_by_data = f"{approved_user}"
         if not record:
             await update.message.reply_text('Запись не найдена.')
             return

@@ -6,7 +6,7 @@ from telegram.ext import CallbackContext
 from db import db
 import textwrap
 
-from sheets import create_sheets_service, add_payment_to_sheet
+from sheets import GoogleSheetsManager
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -66,14 +66,14 @@ async def submit_record_command(update: Update, context: CallbackContext) -> Non
         await update.message.reply_text('Необходимо указать данные для платежа.')
         return
 
-    pattern = (r'^((?:0|[1-9]\d*)(?:\.\d+)?)\s*,\s*([^,]+)\s*,\s*([^,]+)\s*,\s*([^,]+)\s*,\s*([^,]+)\s*,\s*'
-               r'((?:\d{2}\.\d{2}\.\d{4}\s*){1,})\s*,\s*([^,]+)$')
-    message = ' '.join(context.args)
-    match = re.match(pattern, message)
-
-    if not match:
-        await update.message.reply_text('Неверный формат аргументов. Пожалуйста, следуйте указанному формату.')
-        return
+    # pattern = (r'^((?:0|[1-9]\d*)(?:\.\d+)?)\s*,\s*([^,]+)\s*,\s*([^,]+)\s*,\s*([^,]+)\s*,\s*([^,]+)\s*,\s*'
+    #            r'((?:\d{2}\.\d{2}\.\d{4}\s*){1,})\s*,\s*([^,]+)$')
+    # message = ' '.join(context.args)
+    # match = re.match(pattern, message)
+    #
+    # if not match:
+    #     await update.message.reply_text('Неверный формат аргументов. Пожалуйста, следуйте указанному формату.')
+    #     return
 
     record_dict = {
         "amount": match.group(1),
@@ -193,8 +193,11 @@ async def process_pay(update: Update, context: CallbackContext) -> None:
         await db.update_row_by_id(approval_id, {"status": "Paid"})
     await update.callback_query.edit_message_text(text=f"Заявка {approval_id} оплачена.",
                                                   reply_markup=InlineKeyboardMarkup([]))
-    gc = create_sheets_service()
-    add_payment_to_sheet(gc, record)
+
+    # При нажатии "Оплачено" добавляем данные в таблицу
+    manager = GoogleSheetsManager()
+    await manager.initialize_google_sheets()
+    await manager.add_payment_to_sheet(record)
 
 
 async def process_approval(update: Update, context: CallbackContext) -> None:

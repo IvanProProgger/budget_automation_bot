@@ -1,5 +1,5 @@
 from telegram import Update, ForceReply, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ConversationHandler, ContextTypes, CallbackContext
+from telegram.ext import ConversationHandler, ContextTypes, CallbackContext, CallbackQueryHandler
 
 import logging
 import re
@@ -14,7 +14,7 @@ INPUT_SUM, INPUT_ITEM, INPUT_GROUP, INPUT_PARTNER, INPUT_COMMENT, INPUT_DATES, I
     range(8))
 
 
-payment_types = ["Наличные, Безналичные, Криптовалюта"]
+payment_types = ["Наличные", "Безналичные", "Криптовалюта"]
 
 async def create_keyboard(massive):
     keyboard = []
@@ -178,6 +178,8 @@ async def input_comment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 
     context.user_data['comment'] = user_comment
 
+    await update.message.from_user.delete_message(update.message.message_id)
+
     await update.message.reply_text(f"Введён комментарий: {user_comment}")
     await update.message.reply_text(
         'Введите даты начисления через пробел:',
@@ -209,6 +211,7 @@ async def input_dates(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
 
 
 async def input_payment_type(update: Update, context: ContextTypes) -> int:
+
     query = update.callback_query
     await query.answer()
     payment_type = payment_types[int(query.data)]
@@ -259,13 +262,17 @@ async def confirm_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     return ConversationHandler.END
 
 
-async def stop_dialog(update: Update, context: CallbackContext) -> int:
-    """Обработчик команды /stop"""
-    await context.bot.edit_message_text('Диалог прерван.', reply_markup=None)
-    # await update.message.reply_text('Диалог прерван.')
-    # message = update.effective_message
-    # logger.info(message)
-    # if message and message.reply_to_message and message.reply_to_message.reply_markup:
-    #     await message.edit_reply_markup(reply_markup=None)
-    #
-    # return ConversationHandler.END
+async def stop_dialog(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Обработчик команды /stop."""
+
+    # Clear all user data
+    context.user_data.clear()
+
+    # Remove all existing keyboards
+    await update.message.reply_text("Операция отменена. Выход из диалога.", reply_markup=InlineKeyboardMarkup([]))
+
+    # Reset the conversation state
+    await update.message.reply_text("Диалог был остановлен. Начните заново с командой /enter_record",
+                                    reply_markup=InlineKeyboardMarkup([]))
+
+    return ConversationHandler.END

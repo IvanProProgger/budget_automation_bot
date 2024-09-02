@@ -6,12 +6,18 @@ from conversation import enter_record, input_sum, input_item, input_group, input
 from handlers import start_command, submit_record_command, error_callback, reject_record_command, \
     show_not_paid, process_pay, process_approval
 
+import asyncio
+
+from init import db
+
 INPUT_SUM, INPUT_ITEM, INPUT_GROUP, INPUT_PARTNER, INPUT_COMMENT, INPUT_DATES, INPUT_PAYMENT_TYPE, CONFIRM_COMMAND = (
     range(8))
 
 
-def main() -> None:
+async def main() -> None:
     """Основная функция для запуска бота."""
+    async with db:
+        await db.create_table()
     application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
     application.add_handler(CommandHandler("start", start_command))
     application.add_handler(CommandHandler("submit_record", submit_record_command))
@@ -37,8 +43,8 @@ def main() -> None:
     )
     application.add_handler(conversation_handler)
     application.add_error_handler(error_callback)
-    application.run_polling()
+    await application.run_polling()
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

@@ -3,3 +3,4 @@ config.py
 credentials.json
 .idea
 /__pycache__/
+approvals.db

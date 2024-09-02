@@ -12,7 +12,6 @@ from config import GOOGLE_SHEETS_SPREADSHEET_ID, GOOGLE_SHEETS_CREDENTIALS_FILE,
 async def get_today_moscow_time():
     moscow_tz = pytz.timezone('Europe/Moscow')
     today = datetime.now(moscow_tz)
-    # year = today.year
     formatted_date = today.strftime('%d.%m.%Y')
     return formatted_date
 

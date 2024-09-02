@@ -3,7 +3,7 @@ import re
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CallbackContext
-from db import db
+from init import db
 import textwrap
 
 from config import DEPARTMENT_HEAD_CHAT_ID, FINANCE_CHAT_IDS, PAYERS_CHAT_IDS
@@ -42,8 +42,6 @@ async def start_command(update: Update, context: CallbackContext) -> None:
         f"<i>Ваш chat_id - {update.message.chat_id}</i>",
         parse_mode='HTML'
     )
-    async with db:
-        await db.create_table()
 
 
 async def submit_record_command(update: Update, context: CallbackContext) -> None:
@@ -61,6 +59,7 @@ async def submit_record_command(update: Update, context: CallbackContext) -> Non
     """
     if not context.args:
         await update.message.reply_text('Необходимо указать данные для платежа.')
+
         return
 
     pattern = (r'((?:0|[1-9]\d*)(?:\.\d+)?)\s*;\s*([^;]+)\s*;\s*([^;]+)\s*;\s*([^;]+)\s*;\s*([^;]+)\s*;'

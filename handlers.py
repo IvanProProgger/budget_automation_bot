@@ -1,11 +1,13 @@
 import logging
 import re
-
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import CallbackContext
-from db import db
 import textwrap
 
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import CallbackContext, ContextTypes
+
+
+from config import Config
+from db import db
 from sheets import GoogleSheetsManager
 
 logging.basicConfig(
@@ -14,17 +16,20 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-async def chat_ids_department(department):
+async def chat_ids_department(department) -> list[str]:
+    """Возвращяет chat_id для подгрупп"""
     chat_ids = {
         "head": Config.department_head_chat_id,
         "finance": Config.finance_chat_ids,
         "payers": Config.payers_chat_ids,
-        "all": Config.department_head_chat_id + Config.finance_chat_ids + Config.payers_chat_ids,
+        "all": Config.department_head_chat_id
+        + Config.finance_chat_ids
+        + Config.payers_chat_ids,
     }
     return chat_ids[department]
 
 
-async def start_command(update: Update, context: CallbackContext) -> None:
+async def start_command(update: Update) -> None:
     """Обработчик команды /start."""
     await update.message.reply_text(
         f"<b>Бот по автоматизации заполнения бюджета</b>\n"
@@ -45,7 +50,7 @@ async def start_command(update: Update, context: CallbackContext) -> None:
     )
 
 
-async def submit_record_command(update: Update, context: CallbackContext) -> None:
+async def submit_record_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
     Обработчик введённого пользователем платежа в соответствии с паттерном:
     1)Сумма счёта: положительное число (возможно с плавающей точкой)
@@ -106,7 +111,7 @@ async def submit_record_command(update: Update, context: CallbackContext) -> Non
     )
 
 
-async def reject_record_command(update: Update, context: CallbackContext) -> None:
+async def reject_record_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
     Меняет в базе данных статус платежа на отклонён('Rejected')
     и отправляет сообщение об отмене ранее одобренного платежа.
@@ -135,9 +140,8 @@ async def reject_record_command(update: Update, context: CallbackContext) -> Non
     await update.message.reply_text(f"Заявка {row_id} отклонена.")
 
 
-async def create_and_send_approval_message(
-    approval_id, initiator_chat_id, record, department, context=None
-):
+async def create_and_send_approval_message(approval_id, initiator_chat_id, record, department,
+                                           context: ContextTypes.DEFAULT_TYPE) -> None:
     """Создание кнопок "Одобрить" и "Отклонить", создание и отправка сообщения для одобрения заявки."""
     keyboard = [
         [
@@ -168,9 +172,8 @@ async def create_and_send_approval_message(
     await send_message_to_chats(chat_ids, message_text, context, reply_markup)
 
 
-async def create_and_send_payment_message(
-    approval_id, approved_users, record, context=None
-):
+async def create_and_send_payment_message(approval_id, approved_users, record,
+                                          context: ContextTypes.DEFAULT_TYPE) -> None:
     """Создание кнопок "Оплачено", создание и отправка сообщения для одобрения заявки."""
     keyboard = [[InlineKeyboardButton("Оплачено", callback_data=f"pay_{approval_id}")]]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -193,7 +196,7 @@ async def send_message_to_chats(chat_ids, text, context, reply_markup=None):
         )
 
 
-async def process_pay(update: Update, context: CallbackContext) -> None:
+async def process_pay(update: Update) -> None:
     """
     Обработчик нажатий пользователем кнопки "Оплачено"
     """
@@ -226,7 +229,7 @@ async def process_pay(update: Update, context: CallbackContext) -> None:
     await manager.add_payment_to_sheet(record)
 
 
-async def process_approval(update: Update, context: CallbackContext) -> None:
+async def process_approval(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
     Обработчик нажатий пользователем кнопок "Одобрить" или "Отклонить."
     """
@@ -406,7 +409,7 @@ async def error_callback(update: Update, context: CallbackContext) -> None:
             logger.error(f"Ошибка при отправке уведомления об ошибке: {e}.")
 
 
-async def show_not_paid(update: Update, context: CallbackContext) -> None:
+async def show_not_paid(update: Update) -> None:
     """
     Возвращает все необработанные колонки таблицы "approvals"
     """

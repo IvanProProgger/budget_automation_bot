@@ -1,20 +1,34 @@
 from telegram import Update, ForceReply, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ConversationHandler, ContextTypes, CallbackContext, CallbackQueryHandler
+from telegram.ext import (
+    ConversationHandler,
+    ContextTypes
+)
 
 import logging
 import re
 
 from sheets import GoogleSheetsManager
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
 
 
-INPUT_SUM, INPUT_ITEM, INPUT_GROUP, INPUT_PARTNER, INPUT_COMMENT, INPUT_DATES, INPUT_PAYMENT_TYPE, CONFIRM_COMMAND = (
-    range(8))
+(
+    INPUT_SUM,
+    INPUT_ITEM,
+    INPUT_GROUP,
+    INPUT_PARTNER,
+    INPUT_COMMENT,
+    INPUT_DATES,
+    INPUT_PAYMENT_TYPE,
+    CONFIRM_COMMAND,
+) = range(8)
 
 
 payment_types = ["нал", "безнал", "крипта"]
+
 
 async def create_keyboard(massive):
     keyboard = []
@@ -33,14 +47,14 @@ async def enter_record(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     await manager.initialize_google_sheets()
     options_dict, items = await manager.get_data()
 
-    context.user_data['chat_id'] = update.effective_chat.id
-    context.user_data['options'], context.user_data['items'] = options_dict, items
+    context.user_data["chat_id"] = update.effective_chat.id
+    context.user_data["options"], context.user_data["items"] = options_dict, items
 
     bot_message = await update.message.reply_text(
-        'Введите сумму:',
+        "Введите сумму:",
         reply_markup=ForceReply(selective=True),
     )
-    context.user_data['enter_sum_message_id'] = bot_message.message_id
+    context.user_data["enter_sum_message_id"] = bot_message.message_id
 
     return INPUT_SUM
 
@@ -48,7 +62,7 @@ async def enter_record(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 async def input_sum(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Обработка ввода суммы и выбор категории."""
     user_sum = update.message.text
-    pattern = r'^[0-9]+(?:\.[0-9]+)?$'
+    pattern = r"^[0-9]+(?:\.[0-9]+)?$"
 
     await update.message.from_user.delete_message(update.message.message_id)
 
@@ -56,16 +70,18 @@ async def input_sum(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         await update.message.reply_text("Некорректная сумма. Попробуйте ещё раз.")
         return INPUT_SUM
 
-    del context.user_data['enter_sum_message_id']
+    del context.user_data["enter_sum_message_id"]
 
-    context.user_data['sum'] = user_sum
+    context.user_data["sum"] = user_sum
     await update.message.reply_text(f"Введена сумма: {user_sum}")
 
-    items = context.user_data['items']
+    items = context.user_data["items"]
 
     reply_markup = await create_keyboard(items)
 
-    await update.message.reply_text('Выберите статью расхода:', reply_markup=reply_markup)
+    await update.message.reply_text(
+        "Выберите статью расхода:", reply_markup=reply_markup
+    )
 
     return INPUT_ITEM
 
@@ -73,48 +89,53 @@ async def input_sum(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 async def input_item(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Обработка выбора категории."""
     query = update.callback_query
-    selected_item = context.user_data['items'][int(query.data)]
+    selected_item = context.user_data["items"][int(query.data)]
     await query.edit_message_text(f"Выбрана статья расхода: {selected_item}")
 
-    context.user_data['item'] = selected_item
-    context.user_data['options'] = context.user_data['options'].get(selected_item)
-    groups = list(context.user_data['options'].keys())
-    context.user_data['groups'] = groups
+    context.user_data["item"] = selected_item
+    context.user_data["options"] = context.user_data["options"].get(selected_item)
+    groups = list(context.user_data["options"].keys())
+    context.user_data["groups"] = groups
 
-    del context.user_data['items']
+    del context.user_data["items"]
 
     if len(groups) == 1:
 
-        selected_group = context.user_data['groups'][0]
-        context.user_data['group'] = selected_group
-        partners = context.user_data['options'].get(selected_group)
-        context.user_data['partners'] = context.user_data['options'].get(selected_group)
-        del context.user_data['options']
-        del context.user_data['groups']
+        selected_group = context.user_data["groups"][0]
+        context.user_data["group"] = selected_group
+        partners = context.user_data["options"].get(selected_group)
+        context.user_data["partners"] = context.user_data["options"].get(selected_group)
+        del context.user_data["options"]
+        del context.user_data["groups"]
 
-        await context.bot.send_message(context.user_data['chat_id'], f'Выбрана группа расхода: {selected_group}')
+        await context.bot.send_message(
+            context.user_data["chat_id"], f"Выбрана группа расхода: {selected_group}"
+        )
 
         if len(partners) == 1:
-            selected_partner = context.user_data['partners'][0]
-            context.user_data['partner'] = selected_partner
-            del context.user_data['partners']
+            selected_partner = context.user_data["partners"][0]
+            context.user_data["partner"] = selected_partner
+            del context.user_data["partners"]
 
-            await context.bot.send_message(context.user_data['chat_id'], f'Выбран партнёр: {selected_partner}')
+            await context.bot.send_message(
+                context.user_data["chat_id"], f"Выбран партнёр: {selected_partner}"
+            )
 
             await query.message.reply_text(
-                'Введите комментарий для отчёта:',
+                "Введите комментарий для отчёта:",
                 reply_markup=ForceReply(selective=True),
             )
             return INPUT_COMMENT
 
-
-        reply_markup = await create_keyboard(context.user_data['partners'])
-        await query.message.reply_text('Выберите партнёра:', reply_markup=reply_markup)
+        reply_markup = await create_keyboard(context.user_data["partners"])
+        await query.message.reply_text("Выберите партнёра:", reply_markup=reply_markup)
 
         return INPUT_PARTNER
 
     reply_markup = await create_keyboard(groups)
-    await query.message.reply_text('Выберите группу расхода:', reply_markup=reply_markup)
+    await query.message.reply_text(
+        "Выберите группу расхода:", reply_markup=reply_markup
+    )
 
     return INPUT_GROUP
 
@@ -122,46 +143,46 @@ async def input_item(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 async def input_group(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Обработка выбора группы расходов."""
     query = update.callback_query
-    selected_group = context.user_data['groups'][int(query.data)]
+    selected_group = context.user_data["groups"][int(query.data)]
     await query.edit_message_text(f"Выбрана группа расхода: {selected_group}")
 
-    context.user_data['group'] = selected_group
-    partners = context.user_data['options'].get(selected_group)
-    context.user_data['partners'] = partners
-    logger.info(context.user_data['partners'])
-    del context.user_data['options']
-    del context.user_data['groups']
+    context.user_data["group"] = selected_group
+    partners = context.user_data["options"].get(selected_group)
+    context.user_data["partners"] = partners
+    logger.info(context.user_data["partners"])
+    del context.user_data["options"]
+    del context.user_data["groups"]
 
     if len(partners) == 1:
-        selected_partner = context.user_data['partners'][0]
-        context.user_data['partner'] = selected_partner
-        del context.user_data['partners']
+        selected_partner = context.user_data["partners"][0]
+        context.user_data["partner"] = selected_partner
+        del context.user_data["partners"]
 
         chat_id = update.effective_chat.id
-        await context.bot.send_message(chat_id, f'Выбран партнёр: {selected_partner}')
+        await context.bot.send_message(chat_id, f"Выбран партнёр: {selected_partner}")
 
         await query.message.reply_text(
-            'Введите комментарий для отчёта:',
+            "Введите комментарий для отчёта:",
             reply_markup=ForceReply(selective=True),
         )
         return INPUT_COMMENT
 
-    reply_markup = await create_keyboard(context.user_data['partners'])
-    await query.message.reply_text('Выберите партнёра:', reply_markup=reply_markup)
+    reply_markup = await create_keyboard(context.user_data["partners"])
+    await query.message.reply_text("Выберите партнёра:", reply_markup=reply_markup)
 
     return INPUT_PARTNER
 
 
 async def input_partner(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
-    selected_partner = context.user_data['partners'][int(query.data)]
+    selected_partner = context.user_data["partners"][int(query.data)]
     await query.edit_message_text(f"Выбран партнёр: {selected_partner}")
 
-    context.user_data['partner'] = selected_partner
-    del context.user_data['partners']
+    context.user_data["partner"] = selected_partner
+    del context.user_data["partners"]
 
     await query.message.reply_text(
-        'Введите комментарий для отчёта:',
+        "Введите комментарий для отчёта:",
         reply_markup=ForceReply(selective=True),
     )
     return INPUT_COMMENT
@@ -170,19 +191,18 @@ async def input_partner(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 async def input_comment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user_comment = update.message.text
 
-    pattern = r'^\S.*'
+    pattern = r"^\S.*"
     if not re.fullmatch(pattern, user_comment):
         await update.message.reply_text("Некорректный комментарий. Попробуйте ещё раз")
         return ConversationHandler.END
 
-
-    context.user_data['comment'] = user_comment
+    context.user_data["comment"] = user_comment
 
     await update.message.from_user.delete_message(update.message.message_id)
 
     await update.message.reply_text(f"Введён комментарий: {user_comment}")
     await update.message.reply_text(
-        'Введите даты начисления через пробел:',
+        "Введите даты начисления через пробел:",
         reply_markup=ForceReply(selective=True),
     )
 
@@ -192,20 +212,22 @@ async def input_comment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 async def input_dates(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user_dates = update.message.text
 
-    pattern = r'(\d{2}\.\d{2}\s*)+'
+    pattern = r"(\d{2}\.\d{2}\s*)+"
     if not re.fullmatch(pattern, user_dates):
-        await update.message.reply_text("Некорректные даты(дата). Попробуйте ещё раз",
-                                        reply_markup=ForceReply(selective=True))
+        await update.message.reply_text(
+            "Некорректные даты(дата). Попробуйте ещё раз",
+            reply_markup=ForceReply(selective=True),
+        )
         return INPUT_DATES
 
-    context.user_data['dates'] = user_dates
+    context.user_data["dates"] = user_dates
     await update.message.reply_text(f"Введены даты: {user_dates}")
 
     await update.message.from_user.delete_message(update.message.message_id)
 
     reply_markup = await create_keyboard(payment_types)
 
-    await update.message.reply_text('Выберите тип оплаты:', reply_markup=reply_markup)
+    await update.message.reply_text("Выберите тип оплаты:", reply_markup=reply_markup)
 
     return INPUT_PAYMENT_TYPE
 
@@ -216,27 +238,29 @@ async def input_payment_type(update: Update, context: ContextTypes) -> int:
     await query.answer()
     payment_type = payment_types[int(query.data)]
 
-    await query.edit_message_text(f'Выбран тип платежа: {payment_type}')
+    await query.edit_message_text(f"Выбран тип платежа: {payment_type}")
 
-    final_command = (f"{context.user_data['sum']}; {context.user_data['item']}; "
-                     f"{context.user_data['group']}; {context.user_data['partner']}; {context.user_data['comment']}; "
-                     f"{context.user_data['dates']}; {payment_type}")
+    final_command = (
+        f"{context.user_data['sum']}; {context.user_data['item']}; "
+        f"{context.user_data['group']}; {context.user_data['partner']}; {context.user_data['comment']}; "
+        f"{context.user_data['dates']}; {payment_type}"
+    )
 
-    context.user_data['final_command'] = final_command
+    context.user_data["final_command"] = final_command
 
     buttons = [
         [InlineKeyboardButton("Подтвердить", callback_data="Подтвердить")],
-        [InlineKeyboardButton("Отмена", callback_data="Отмена")]
+        [InlineKeyboardButton("Отмена", callback_data="Отмена")],
     ]
     reply_markup = InlineKeyboardMarkup(buttons)
 
     await query.message.reply_text(
         text=f"Полученная информация о счёте:\n1)Сумма: {context.user_data['sum']}\n"
-             f"2)Статья: {context.user_data['item']}\n3)Группа: {context.user_data['group']}\n"
-             f"4)Партнёр: {context.user_data['partner']}\n5)Комментарий: {context.user_data['comment']}\n"
-             f"6)Даты начисления: {context.user_data['dates']}\n"
-             f"7)Форма оплаты: {payment_type}\nПроверьте правильность введённых данных!",
-        reply_markup=reply_markup
+        f"2)Статья: {context.user_data['item']}\n3)Группа: {context.user_data['group']}\n"
+        f"4)Партнёр: {context.user_data['partner']}\n5)Комментарий: {context.user_data['comment']}\n"
+        f"6)Даты начисления: {context.user_data['dates']}\n"
+        f"7)Форма оплаты: {payment_type}\nПроверьте правильность введённых данных!",
+        reply_markup=reply_markup,
     )
 
     return CONFIRM_COMMAND
@@ -248,13 +272,18 @@ async def confirm_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     await query.answer()
 
     if query.data == "Подтвердить":
-        final_command = context.user_data.get('final_command', '')
+        final_command = context.user_data.get("final_command", "")
 
         if final_command:
-            await context.bot.send_message(chat_id=context.user_data['chat_id'], text=f"/submit_record {final_command}")
+            await context.bot.send_message(
+                chat_id=context.user_data["chat_id"],
+                text=f"/submit_record {final_command}",
+            )
 
-        await query.edit_message_text(text="Информация о счёте готова к отправке. Скопируйте данное сообщение и "
-                                           "пришлите в чат")
+        await query.edit_message_text(
+            text="Информация о счёте готова к отправке. Скопируйте данное сообщение и "
+            "пришлите в чат"
+        )
 
     elif query.data == "Отмена":
         await query.edit_message_text(text="Отмена операции.")
@@ -267,7 +296,9 @@ async def stop_dialog(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
 
     context.user_data.clear()
 
-    await update.message.reply_text("Диалог был остановлен. Начните заново с командой /enter_record",
-                                    reply_markup=InlineKeyboardMarkup([]))
+    await update.message.reply_text(
+        "Диалог был остановлен. Начните заново с командой /enter_record",
+        reply_markup=InlineKeyboardMarkup([]),
+    )
 
     return ConversationHandler.END

@@ -10,25 +10,28 @@ from config import Config
 
 async def get_today_moscow_time():
     """Функция для получения текущей даты"""
-    moscow_tz = pytz.timezone('Europe/Moscow')
+    moscow_tz = pytz.timezone("Europe/Moscow")
     today = datetime.now(moscow_tz)
-    formatted_date = today.strftime('%d.%m.%Y')
+    formatted_date = today.strftime("%d.%m.%Y")
     return formatted_date
 
 
 def get_credentials():
     """Функция для получения данных для авторизации в Google Sheets"""
     creds = Credentials.from_service_account_file(Config.google_sheets_credentials_file)
-    scoped = creds.with_scopes([
-        "https://spreadsheets.google.com/feeds",
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/drive",
-    ])
+    scoped = creds.with_scopes(
+        [
+            "https://spreadsheets.google.com/feeds",
+            "https://www.googleapis.com/auth/spreadsheets",
+            "https://www.googleapis.com/auth/drive",
+        ]
+    )
     return scoped
 
 
 class GoogleSheetsManager:
-    """"Класс для обработки Google Sheets таблиц"""
+    """ "Класс для обработки Google Sheets таблиц"""
+
     def __init__(self):
         self.sheets_spreadsheet_id = Config.google_sheets_spreadsheet_id
         self.records_sheet_id = Config.google_sheets_records_sheet_id
@@ -56,18 +59,18 @@ class GoogleSheetsManager:
             return
 
         today_date = await get_today_moscow_time()
-        months = payment_info['period'].split(' ')
-        total_sum = payment_info['amount'] / len(months)
+        months = payment_info["period"].split(" ")
+        total_sum = payment_info["amount"] / len(months)
         for month in months:
             row_data = [
                 today_date,
                 total_sum,
-                payment_info['expense_item'],
-                payment_info['expense_group'],
-                payment_info['partner'],
-                payment_info['comment'],
+                payment_info["expense_item"],
+                payment_info["expense_group"],
+                payment_info["partner"],
+                payment_info["comment"],
                 month,
-                payment_info['payment_method']
+                payment_info["payment_method"],
             ]
             await worksheet.append_row(row_data)
 
@@ -81,13 +84,13 @@ class GoogleSheetsManager:
         worksheet = await spreadsheet.get_worksheet_by_id(self.categories_sheet_id)
 
         df = pd.DataFrame(await worksheet.get_all_records())
-        unique_items = df['Статья'].unique()
+        unique_items = df["Статья"].unique()
         data_structure = {}
 
         for _, row in df.iterrows():
-            category = row['Статья']
-            group = row['Группа']
-            partner = row['Партнер']
+            category = row["Статья"]
+            group = row["Группа"]
+            partner = row["Партнер"]
 
             if category not in data_structure:
                 data_structure[category] = {}

@@ -1,5 +1,4 @@
 import logging
-import asyncio
 import aiosqlite
 
 from config import Config
@@ -28,11 +27,14 @@ class ApprovalDB:
     async def create_table(self):
         """Создает таблицу 'approvals', если она еще не существует."""
         async with self:
-            await self._cursor.execute('SELECT name FROM sqlite_master WHERE type="table" AND name="approvals";')
+            await self._cursor.execute(
+                'SELECT name FROM sqlite_master WHERE type="table" AND name="approvals";'
+            )
             table_exists = await self._cursor.fetchone()
 
         if not table_exists:
-            await self._cursor.execute('''CREATE TABLE IF NOT EXISTS approvals
+            await self._cursor.execute(
+                """CREATE TABLE IF NOT EXISTS approvals
                                           (id INTEGER PRIMARY KEY, 
                                            amount REAL, 
                                            expense_item TEXT, 
@@ -44,7 +46,8 @@ class ApprovalDB:
                                            approvals_needed INTEGER, 
                                            approvals_received INTEGER,
                                            status TEXT,
-                                           approved_by TEXT)''')
+                                           approved_by TEXT)"""
+            )
             await self._conn.commit()
             logging.info("Таблица 'approvals' создана.")
         else:
@@ -56,9 +59,9 @@ class ApprovalDB:
         """
         try:
             await self._cursor.execute(
-                'INSERT INTO approvals (amount, expense_item, expense_group, partner, comment, period, payment_method,'
-                'approvals_needed, approvals_received, status, approved_by) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
-                list(record.values())
+                "INSERT INTO approvals (amount, expense_item, expense_group, partner, comment, period, payment_method,"
+                "approvals_needed, approvals_received, status, approved_by) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                list(record.values()),
             )
             await self._conn.commit()
             logging.info("Record inserted successfully.")
@@ -69,12 +72,31 @@ class ApprovalDB:
 
     async def get_row_by_id(self, row_id):
         try:
-            result = await self._cursor.execute('SELECT * FROM approvals WHERE id=?', (row_id,))
+            result = await self._cursor.execute(
+                "SELECT * FROM approvals WHERE id=?", (row_id,)
+            )
             row = await result.fetchone()
             if row is None:
                 return None
-            return dict(zip(('id', 'amount', 'expense_item', 'expense_group', 'partner', 'comment', 'period',
-                             'payment_method', 'approvals_needed', 'approvals_received', 'status', 'approved_by'), row))
+            return dict(
+                zip(
+                    (
+                        "id",
+                        "amount",
+                        "expense_item",
+                        "expense_group",
+                        "partner",
+                        "comment",
+                        "period",
+                        "payment_method",
+                        "approvals_needed",
+                        "approvals_received",
+                        "status",
+                        "approved_by",
+                    ),
+                    row,
+                )
+            )
         except Exception as e:
             logging.error(f"Failed to fetch record: {e}")
             return None
@@ -82,28 +104,52 @@ class ApprovalDB:
     async def update_row_by_id(self, row_id, updates):
         try:
             await self._cursor.execute(
-                'UPDATE approvals SET {} WHERE id = ?'.format(', '.join([f"{key} = ?" for key in updates.keys()])),
-                list(updates.values()) + [row_id]
+                "UPDATE approvals SET {} WHERE id = ?".format(
+                    ", ".join([f"{key} = ?" for key in updates.keys()])
+                ),
+                list(updates.values()) + [row_id],
             )
             await self._conn.commit()
             logging.info("Record updated successfully.")
         except Exception as e:
-            logging.error(f"Failed to update record: {e}. Approval ID: {row_id}, Updates: {updates}")
+            logging.error(
+                f"Failed to update record: {e}. Approval ID: {row_id}, Updates: {updates}"
+            )
             raise
 
     async def find_not_paid(self):
         try:
-            result = await self._cursor.execute('SELECT * FROM approvals WHERE status != ? AND status != ?',
-                                                ('Paid', 'Rejected'))
+            result = await self._cursor.execute(
+                "SELECT * FROM approvals WHERE status != ? AND status != ?",
+                ("Paid", "Rejected"),
+            )
             rows = await result.fetchall()
             if not rows:
                 return []
 
-            return [dict(zip(('id заявки', 'сумма', 'статья', 'группа', 'партнёр', 'комментарий', 'период дат',
-                              'способ оплаты', 'апрувов требуется', 'апрувов получено', 'статус', 'кем апрувенно'),
-                             row)) for row in rows]
+            return [
+                dict(
+                    zip(
+                        (
+                            "id заявки",
+                            "сумма",
+                            "статья",
+                            "группа",
+                            "партнёр",
+                            "комментарий",
+                            "период дат",
+                            "способ оплаты",
+                            "апрувов требуется",
+                            "апрувов получено",
+                            "статус",
+                            "кем апрувенно",
+                        ),
+                        row,
+                    )
+                )
+                for row in rows
+            ]
         except Exception as e:
             logging.error(f"Failed to fetch records: {e}")
 
             return []
-

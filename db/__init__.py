@@ -1,7 +1,7 @@
+import asyncio
+
 from .db import ApprovalDB
 
-from asyncio import run
-import asyncio
 
 __all__ = ["db"]
 db = ApprovalDB()

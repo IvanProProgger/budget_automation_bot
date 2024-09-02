@@ -5,11 +5,11 @@ from datetime import datetime
 import pytz
 import pandas as pd
 
-from config import GOOGLE_SHEETS_SPREADSHEET_ID, GOOGLE_SHEETS_CREDENTIALS_FILE, GOOGLE_SHEETS_CATEGORIES_SHEET_ID, \
-    GOOGLE_SHEETS_RECORDS_SHEET_ID
+from config import Config
 
 
 async def get_today_moscow_time():
+    """Функция для получения текущей даты"""
     moscow_tz = pytz.timezone('Europe/Moscow')
     today = datetime.now(moscow_tz)
     formatted_date = today.strftime('%d.%m.%Y')
@@ -17,7 +17,8 @@ async def get_today_moscow_time():
 
 
 def get_credentials():
-    creds = Credentials.from_service_account_file(GOOGLE_SHEETS_CREDENTIALS_FILE)
+    """Функция для получения данных для авторизации в Google Sheets"""
+    creds = Credentials.from_service_account_file(Config.google_sheets_credentials_file)
     scoped = creds.with_scopes([
         "https://spreadsheets.google.com/feeds",
         "https://www.googleapis.com/auth/spreadsheets",
@@ -27,11 +28,11 @@ def get_credentials():
 
 
 class GoogleSheetsManager:
+    """"Класс для обработки Google Sheets таблиц"""
     def __init__(self):
-        self.credentials_file = GOOGLE_SHEETS_CREDENTIALS_FILE
-        self.sheets_spreadsheet_id = GOOGLE_SHEETS_SPREADSHEET_ID
-        self.records_sheet_id = GOOGLE_SHEETS_RECORDS_SHEET_ID
-        self.categories_sheet_id = GOOGLE_SHEETS_CATEGORIES_SHEET_ID
+        self.sheets_spreadsheet_id = Config.google_sheets_spreadsheet_id
+        self.records_sheet_id = Config.google_sheets_records_sheet_id
+        self.categories_sheet_id = Config.google_sheets_categories_sheet_id
         self.options_dict = None
         self.items = None
         self.logger = logging.getLogger(__name__)
@@ -39,11 +40,13 @@ class GoogleSheetsManager:
         self.agc = None
 
     async def initialize_google_sheets(self):
+        """Инициализация в Google Sheets"""
         agcm = gspread_asyncio.AsyncioGspreadClientManager(get_credentials)
         self.agc = await agcm.authorize()
         return self.agc
 
     async def add_payment_to_sheet(self, payment_info):
+        """Добавление счёта в таблицу"""
         try:
             spreadsheet = await self.agc.open_by_key(self.sheets_spreadsheet_id)
             worksheet = await spreadsheet.get_worksheet_by_id(0)
@@ -71,6 +74,9 @@ class GoogleSheetsManager:
             self.logger.info(f"Добавлена строка: {row_data}")
 
     async def get_data(self):
+        """
+        Получение списка статей и списка словарей данных из таблицы "категории"
+        """
         spreadsheet = await self.agc.open_by_key(self.sheets_spreadsheet_id)
         worksheet = await spreadsheet.get_worksheet_by_id(self.categories_sheet_id)
 

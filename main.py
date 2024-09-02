@@ -7,7 +7,7 @@ from telegram.ext import (
     filters,
 )
 
-from config import TELEGRAM_BOT_TOKEN
+from config import Config
 from conversation import (
     enter_record,
     input_sum,
@@ -30,8 +30,6 @@ from handlers import (
     process_approval,
 )
 
-import asyncio
-
 (
     INPUT_SUM,
     INPUT_ITEM,
@@ -46,7 +44,7 @@ import asyncio
 
 def main() -> None:
     """Основная функция для запуска бота."""
-    application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+    application = Application.builder().token(Config.telegram_bot_token).build()
     application.add_handler(CommandHandler("start", start_command))
     application.add_handler(CommandHandler("submit_record", submit_record_command))
     application.add_handler(CommandHandler("reject_record", reject_record_command))

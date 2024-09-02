@@ -2,7 +2,7 @@ import logging
 import asyncio
 import aiosqlite
 
-from config import DATABASE_PATH
+from config import Config
 
 logging.basicConfig(level=logging.INFO)
 
@@ -11,7 +11,7 @@ class ApprovalDB:
     """База данных для хранения данных о заявке"""
 
     def __init__(self):
-        self.db_file = DATABASE_PATH
+        self.db_file = Config.database_path
 
     async def __aenter__(self):
         self._conn = await aiosqlite.connect(self.db_file)

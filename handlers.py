@@ -6,7 +6,6 @@ from telegram.ext import CallbackContext
 from db import db
 import textwrap
 
-from config import DEPARTMENT_HEAD_CHAT_ID, FINANCE_CHAT_IDS, PAYERS_CHAT_IDS
 from sheets import GoogleSheetsManager
 
 logging.basicConfig(
@@ -17,10 +16,10 @@ logger = logging.getLogger(__name__)
 
 async def chat_ids_department(department):
     chat_ids = {
-        "head": DEPARTMENT_HEAD_CHAT_ID,
-        "finance": FINANCE_CHAT_IDS,
-        "payers": PAYERS_CHAT_IDS,
-        "all": DEPARTMENT_HEAD_CHAT_ID + FINANCE_CHAT_IDS + PAYERS_CHAT_IDS,
+        "head": Config.department_head_chat_id,
+        "finance": Config.finance_chat_ids,
+        "payers": Config.payers_chat_ids,
+        "all": Config.department_head_chat_id + Config.finance_chat_ids + Config.payers_chat_ids,
     }
     return chat_ids[department]
 

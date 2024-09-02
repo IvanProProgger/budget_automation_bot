@@ -1,5 +1,6 @@
 venv
 config.py
+.env
 credentials.json
 .idea
 /__pycache__/

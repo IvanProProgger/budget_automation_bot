@@ -194,7 +194,6 @@ async def process_pay(update: Update, context: CallbackContext) -> None:
                                                   reply_markup=InlineKeyboardMarkup([]))
 
     # При нажатии "Оплачено" добавляем данные в таблицу
-    logger.info(record)
     manager = GoogleSheetsManager()
     await manager.initialize_google_sheets()
     await manager.add_payment_to_sheet(record)
@@ -212,12 +211,13 @@ async def process_approval(update: Update, context: CallbackContext) -> None:
         approved_user = "@" + update.callback_query.from_user.username
         async with db:
             record = await db.get_row_by_id(approval_id)
-            approved_users = record["approved_by"]
-            if approved_users:
-                approved_by_data = f"{approved_users} {approved_user}"
-                await db.update_row_by_id(approval_id, {"approved_by": approved_by_data})
+            approved_users_in_db = record["approved_by"]
+            if approved_users_in_db:
+                approved_users = f"{approved_users_in_db}, {approved_user}"
+                await db.update_row_by_id(approval_id, {"approved_by": approved_users})
             else:
                 approved_users = approved_user
+                await db.update_row_by_id(approval_id, {"approved_by": approved_users})
         if not record:
             await update.message.reply_text('Запись не найдена.')
             return
@@ -305,12 +305,12 @@ async def error_callback(update: Update, context: CallbackContext) -> None:
             logger.error(f"Ошибка при отправке уведомления об ошибке: {e}.")
 
 
-async def show_not_processed(update: Update, context: CallbackContext) -> None:
+async def show_not_paid(update: Update, context: CallbackContext) -> None:
     """
     Возвращает все необработанные колонки таблицы "approvals"
     """
     async with db:
-        rows = await db.find_not_processed_rows()
+        rows = await db.find_not_paid()
     messages = []
     for i, record in enumerate(rows, start=1):
         line = ', '.join([f"{key}: {value}" for key, value in record.items()])
@@ -318,4 +318,7 @@ async def show_not_processed(update: Update, context: CallbackContext) -> None:
         wrapped_message = textwrap.fill(message_line, width=4096)
         messages.append(wrapped_message)
     final_text = '\n\n'.join(messages)
-    await update.message.reply_text(final_text)
+    if final_text:
+        await update.message.reply_text(final_text)
+    else:
+        await update.message.reply_text("Заявок не обнаружено")

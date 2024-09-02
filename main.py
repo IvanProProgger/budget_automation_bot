@@ -4,7 +4,7 @@ from config import TELEGRAM_BOT_TOKEN
 from conversation import enter_record, input_sum, input_item, input_group, input_partner, input_comment, \
     input_dates, input_payment_type, confirm_command, stop_dialog
 from handlers import start_command, submit_record_command, error_callback, reject_record_command, \
-    show_not_processed, process_pay, process_approval
+    show_not_paid, process_pay, process_approval
 
 INPUT_SUM, INPUT_ITEM, INPUT_GROUP, INPUT_PARTNER, INPUT_COMMENT, INPUT_DATES, INPUT_PAYMENT_TYPE, CONFIRM_COMMAND = (
     range(8))
@@ -16,7 +16,7 @@ def main() -> None:
     application.add_handler(CommandHandler("start", start_command))
     application.add_handler(CommandHandler("submit_record", submit_record_command))
     application.add_handler(CommandHandler("reject_record", reject_record_command))
-    application.add_handler(CommandHandler('show_not_processed', show_not_processed))
+    application.add_handler(CommandHandler('show_not_paid', show_not_paid))
     application.add_handler(CallbackQueryHandler(process_pay, pattern='^pay_.*'))
     application.add_handler(CallbackQueryHandler(process_approval, pattern='^approval_.*'))
     conversation_handler = ConversationHandler(

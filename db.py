@@ -86,14 +86,15 @@ class ApprovalDB:
             raise
 
 
-    async def find_not_processed_rows(self):
+    async def find_not_paid(self):
         try:
-            result = await self.cursor.execute('SELECT * FROM approvals WHERE status = ?', ("Not processed",))
+            result = await self.cursor.execute('SELECT * FROM approvals WHERE status != ? AND status != ?',
+                                               ('Paid', 'Rejected'))
             rows = await result.fetchall()
             if not rows:
                 return []
-            return [dict(zip(('id', 'amount', 'expense_item', 'expense_group', 'partner', 'period', 'payment_method',
-                              'comment', 'approvals_needed', 'approvals_received', 'status', 'approved_by'),
+            return [dict(zip(('id заявки', 'сумма', 'статья', 'группа', 'партнёр', 'комментарий', 'период дат',
+                              'способ оплаты', 'апрувов требуется', 'апрувов получено', 'статус', 'кем апрувленно'),
                              row)) for row in rows]
         except Exception as e:
             logging.error(f"Failed to fetch records: {e}")

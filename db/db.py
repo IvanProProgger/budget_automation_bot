@@ -7,19 +7,16 @@ from config import DATABASE_PATH
 logging.basicConfig(level=logging.INFO)
 
 
-
 class ApprovalDB:
     """База данных для хранения данных о заявке"""
+
     def __init__(self):
         self.db_file = DATABASE_PATH
-        self._conn = None
-        self._cursor = None
 
     async def __aenter__(self):
-        if self._conn is None:
-            self._conn = await aiosqlite.connect(self.db_file)
-            self._cursor = await self._conn.cursor()
-            logging.info("Connected to database.")
+        self._conn = await aiosqlite.connect(self.db_file)
+        self._cursor = await self._conn.cursor()
+        logging.info("Connected to database.")
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -109,3 +106,4 @@ class ApprovalDB:
             logging.error(f"Failed to fetch records: {e}")
 
             return []
+

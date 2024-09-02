@@ -1,5 +1,3 @@
-import asyncio
-
 import gspread_asyncio
 from google.oauth2.service_account import Credentials
 import logging
@@ -14,6 +12,7 @@ from config import GOOGLE_SHEETS_SPREADSHEET_ID, GOOGLE_SHEETS_CREDENTIALS_FILE,
 async def get_today_moscow_time():
     moscow_tz = pytz.timezone('Europe/Moscow')
     today = datetime.now(moscow_tz)
+    # year = today.year
     formatted_date = today.strftime('%d.%m.%Y')
     return formatted_date
 
@@ -48,7 +47,7 @@ class GoogleSheetsManager:
     async def add_payment_to_sheet(self, payment_info):
         try:
             spreadsheet = await self.agc.open_by_key(self.sheets_spreadsheet_id)
-            worksheet = await spreadsheet.get_worksheet_by_id(1)
+            worksheet = await spreadsheet.get_worksheet_by_id(0)
             self.logger.info(f"Открытие листа: {self.sheets_spreadsheet_id}")
         except Exception as e:
             self.logger.error(f"Ошибка при открытии или доступе к листу: {e}")
@@ -66,9 +65,7 @@ class GoogleSheetsManager:
                 payment_info['partner'],
                 payment_info['comment'],
                 month,
-                payment_info['payment_method'],
-                (int(today_date[3:5]) - 1) // 3 + 1,
-                (int(month[3:5]) - 1) // 3 + 1
+                payment_info['payment_method']
             ]
             await worksheet.append_row(row_data)
 

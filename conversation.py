@@ -14,7 +14,7 @@ INPUT_SUM, INPUT_ITEM, INPUT_GROUP, INPUT_PARTNER, INPUT_COMMENT, INPUT_DATES, I
     range(8))
 
 
-payment_types = ["Наличные", "Безналичные", "Криптовалюта"]
+payment_types = ["нал", "безнал", "крипта"]
 
 async def create_keyboard(massive):
     keyboard = []
@@ -36,10 +36,11 @@ async def enter_record(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     context.user_data['chat_id'] = update.effective_chat.id
     context.user_data['options'], context.user_data['items'] = options_dict, items
 
-    await update.message.reply_text(
+    bot_message = await update.message.reply_text(
         'Введите сумму:',
         reply_markup=ForceReply(selective=True),
     )
+    context.user_data['enter_sum_message_id'] = bot_message.message_id
 
     return INPUT_SUM
 
@@ -53,7 +54,9 @@ async def input_sum(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
     if not re.fullmatch(pattern, user_sum):
         await update.message.reply_text("Некорректная сумма. Попробуйте ещё раз.")
-        return ConversationHandler.END
+        return INPUT_SUM
+
+    del context.user_data['enter_sum_message_id']
 
     context.user_data['sum'] = user_sum
     await update.message.reply_text(f"Введена сумма: {user_sum}")
@@ -70,7 +73,6 @@ async def input_sum(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 async def input_item(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Обработка выбора категории."""
     query = update.callback_query
-    await query.answer()
     selected_item = context.user_data['items'][int(query.data)]
     await query.edit_message_text(f"Выбрана статья расхода: {selected_item}")
 
@@ -120,7 +122,6 @@ async def input_item(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 async def input_group(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Обработка выбора группы расходов."""
     query = update.callback_query
-    await query.answer()
     selected_group = context.user_data['groups'][int(query.data)]
     await query.edit_message_text(f"Выбрана группа расхода: {selected_group}")
 
@@ -153,7 +154,6 @@ async def input_group(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
 
 async def input_partner(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
-    await query.answer()
     selected_partner = context.user_data['partners'][int(query.data)]
     await query.edit_message_text(f"Выбран партнёр: {selected_partner}")
 
@@ -192,7 +192,7 @@ async def input_comment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 async def input_dates(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user_dates = update.message.text
 
-    pattern = r'(\d{2}\.\d{2})+'
+    pattern = r'(\d{2}\.\d{2}\s*)+'
     if not re.fullmatch(pattern, user_dates):
         await update.message.reply_text("Некорректные даты(дата). Попробуйте ещё раз",
                                         reply_markup=ForceReply(selective=True))
@@ -218,9 +218,9 @@ async def input_payment_type(update: Update, context: ContextTypes) -> int:
 
     await query.edit_message_text(f'Выбран тип платежа: {payment_type}')
 
-    final_command = (f"{context.user_data['sum']}, {context.user_data['item']}, "
-                     f"{context.user_data['group']}, {context.user_data['partner']}, {context.user_data['comment']}, "
-                     f"{context.user_data['dates']}, {payment_type}")
+    final_command = (f"{context.user_data['sum']}; {context.user_data['item']}; "
+                     f"{context.user_data['group']}; {context.user_data['partner']}; {context.user_data['comment']}; "
+                     f"{context.user_data['dates']}; {payment_type}")
 
     context.user_data['final_command'] = final_command
 
@@ -265,13 +265,8 @@ async def confirm_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 async def stop_dialog(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Обработчик команды /stop."""
 
-    # Clear all user data
     context.user_data.clear()
 
-    # Remove all existing keyboards
-    await update.message.reply_text("Операция отменена. Выход из диалога.", reply_markup=InlineKeyboardMarkup([]))
-
-    # Reset the conversation state
     await update.message.reply_text("Диалог был остановлен. Начните заново с командой /enter_record",
                                     reply_markup=InlineKeyboardMarkup([]))
 

@@ -1,11 +1,16 @@
-from telegram import Update, ForceReply, InlineKeyboardButton, InlineKeyboardMarkup
+import logging
+import re
+
+from telegram.constants import MessageEntityType
+
+
+from handlers import submit_record_command
+from datetime import datetime
+from telegram import Update, ForceReply, InlineKeyboardButton, InlineKeyboardMarkup, Bot, User, MessageEntity, Message
 from telegram.ext import (
     ConversationHandler,
     ContextTypes
 )
-
-import logging
-import re
 
 from sheets import GoogleSheetsManager
 
@@ -31,6 +36,7 @@ payment_types = ["нал", "безнал", "крипта"]
 
 
 async def create_keyboard(massive):
+    """Функция для создания клавиатуры. Каждый элемент создаётся с новой строки."""
     keyboard = []
 
     for number, item in enumerate(massive):
@@ -41,9 +47,8 @@ async def create_keyboard(massive):
 
 
 async def enter_record(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Начало диалога. Ввод суммы и получение данных о статьях, группах, партнёрах"""
+    """Начало диалога. Ввод суммы и получение данных о статьях, группах, партнёрах."""
     manager = GoogleSheetsManager()
-    await update.message.reply_text('Получаем актуальные данные из таблицы "Категории"')
     await manager.initialize_google_sheets()
     options_dict, items = await manager.get_data()
 
@@ -202,7 +207,7 @@ async def input_comment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 
     await update.message.reply_text(f"Введён комментарий: {user_comment}")
     await update.message.reply_text(
-        "Введите даты начисления через пробел:",
+        'Введите месяц и год начисления платежа строго через пробел в формате mm.yy (Например "09.22 11.22"):',
         reply_markup=ForceReply(selective=True),
     )
 
@@ -212,10 +217,20 @@ async def input_comment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 async def input_dates(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user_dates = update.message.text
 
-    pattern = r"(\d{2}\.\d{2}\s*)+"
-    if not re.fullmatch(pattern, user_dates):
+    try:
+        pattern = r"(\d{2}\.\d{2}\s*)+"
+        match = re.search(pattern, user_dates)
+        if not re.fullmatch(pattern, user_dates):
+            raise ValueError("Неверный формат дат. Введите даты начисления платежей в формате mm.yy строго через"
+                             " пробел")
+        period_dates = match.group(0).split()
+        period = [datetime.strptime(f"01.{date}", "%d.%m.%y").strftime("%Y-%m-%d")
+                  for date in period_dates]
+
+    except ValueError as e:
         await update.message.reply_text(
-            "Некорректные даты(дата). Попробуйте ещё раз",
+            "Неверный формат дат. Введите даты начисления платежей в формате mm.yy строго через"
+                             " пробел",
             reply_markup=ForceReply(selective=True),
         )
         return INPUT_DATES
@@ -270,20 +285,12 @@ async def confirm_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     """Обработка подтверждения команды."""
     query = update.callback_query
     await query.answer()
+    await query.edit_message_reply_markup(reply_markup=None)
 
     if query.data == "Подтвердить":
-        final_command = context.user_data.get("final_command", "")
-
-        if final_command:
-            await context.bot.send_message(
-                chat_id=context.user_data["chat_id"],
-                text=f"/submit_record {final_command}",
-            )
-
-        await query.edit_message_text(
-            text="Информация о счёте готова к отправке. Скопируйте данное сообщение и "
-            "пришлите в чат"
-        )
+        context.args = context.user_data.get('final_command').split()
+        await submit_record_command(update, context)
+        return ConversationHandler.END
 
     elif query.data == "Отмена":
         await query.edit_message_text(text="Отмена операции.")

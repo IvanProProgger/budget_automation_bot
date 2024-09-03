@@ -2,6 +2,7 @@ import logging
 import re
 import textwrap
 
+from datetime import datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CallbackContext, ContextTypes
 
@@ -29,7 +30,7 @@ async def chat_ids_department(department) -> list[str]:
     return chat_ids[department]
 
 
-async def start_command(update: Update) -> None:
+async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик команды /start."""
     await update.message.reply_text(
         f"<b>Бот по автоматизации заполнения бюджета</b>\n"
@@ -63,23 +64,41 @@ async def submit_record_command(update: Update, context: ContextTypes.DEFAULT_TY
     Добавление платежа в базу данных 'approvals';
     Отправление данных о платеже для одобрения главой отдела.
     """
+    # chat_id = update.message.chat_id if update.message else update.effective_chat.id
+    initiator_chat_id = update.effective_chat.id
     if not context.args:
-        await update.message.reply_text("Необходимо указать данные для платежа.")
-
+        # await update.message.reply_text("Необходимо указать данные для платежа.")
+        await context.bot.send_message(chat_id=initiator_chat_id, text="Необходимо указать данные для платежа.")
         return
 
     pattern = (
         r"((?:0|[1-9]\d*)(?:\.\d+)?)\s*;\s*([^;]+)\s*;\s*([^;]+)\s*;\s*([^;]+)\s*;\s*([^;]+)\s*;"
         r"\s*((?:\d{2}\.\d{2}\s*){1,})\s*;\s*([^;]+)$"
     )
-
     message = " ".join(context.args)
     match = re.match(pattern, message)
-
     if not match:
-        await update.message.reply_text(
-            "Неверный формат аргументов. Пожалуйста, следуйте указанному формату."
-        )
+        # await update.message.reply_text(
+        #     "Неверный формат аргументов. Пожалуйста, следуйте указанному формату."
+        # )
+        await context.bot.send_message(chat_id=initiator_chat_id,
+                                       text="Неверный формат аргументов. Пожалуйста, следуйте указанному формату."
+                                       )
+        return
+
+    try:
+        period_dates = match.group(6).split()
+        period = [datetime.strptime(date, "%m.%y").strftime("%m.%Y") for date in period_dates]
+
+    except ValueError as e:
+        # await update.message.reply_text(
+        #     f"Введены неверные даты: {e}. Даты вводятся в формате mm.yy. строго через пробел. "
+        #     f"Пожалуйста, следуйте указанному формату."
+        # )
+        await context.bot.send_message(chat_id=initiator_chat_id, text=f"Введены неверные даты: {e}. "
+                                                             f"Даты вводятся в формате mm.yy. строго через пробел."
+                                                             f" Пожалуйста, следуйте указанному формату."
+                                       )
         return
 
     record_dict = {
@@ -100,12 +119,13 @@ async def submit_record_command(update: Update, context: ContextTypes.DEFAULT_TY
         async with db:
             approval_id = await db.insert_record(record_dict)
     except Exception as e:
-        await update.message.reply_text(
-            f"Произошла ошибка при добавлении счёта в базу данных. {e}"
-        )
+        # await update.message.reply_text(
+        #     f"Произошла ошибка при добавлении счёта в базу данных. {e}"
+        # )
+        await context.bot.send_message(chat_id=initiator_chat_id,
+                                       text=f"Произошла ошибка при добавлении счёта в базу данных. {e}")
         return
 
-    initiator_chat_id = update.message.chat.id
     await create_and_send_approval_message(
         approval_id, initiator_chat_id, record_dict, "head", context=context
     )
@@ -196,7 +216,7 @@ async def send_message_to_chats(chat_ids, text, context, reply_markup=None):
         )
 
 
-async def process_pay(update: Update) -> None:
+async def process_pay(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
     Обработчик нажатий пользователем кнопки "Оплачено"
     """

@@ -1,18 +1,27 @@
 import gspread_asyncio
 from google.oauth2.service_account import Credentials
-import logging
 from datetime import datetime
+
+import logging
 import pytz
 import pandas as pd
 
 from config import Config
 
 
+date_format = {
+        "numberFormat": {
+            "type": "DATE",
+            "pattern": "dd.mm.yyyy"
+        }
+    }
+
 async def get_today_moscow_time():
     """Функция для получения текущей даты"""
     moscow_tz = pytz.timezone("Europe/Moscow")
     today = datetime.now(moscow_tz)
-    formatted_date = today.strftime("%d.%m.%Y")
+    formatted_date = today.strftime('%d.%m.%Y')
+    timestamp_today = today.timestamp()
     return formatted_date
 
 
@@ -59,7 +68,9 @@ class GoogleSheetsManager:
             return
 
         today_date = await get_today_moscow_time()
-        months = payment_info["period"].split(" ")
+        period = payment_info["period"].split(" ")
+        months = [datetime.strptime(f"01.{a}", "%d.%m.%y").strftime("%d.%m.%Y")
+                  for a in period]
         total_sum = payment_info["amount"] / len(months)
         for month in months:
             row_data = [
@@ -72,9 +83,10 @@ class GoogleSheetsManager:
                 month,
                 payment_info["payment_method"],
             ]
-            await worksheet.append_row(row_data)
-
+            await worksheet.append_row(row_data, value_input_option='USER_ENTERED')
             self.logger.info(f"Добавлена строка: {row_data}")
+            await worksheet.format("A3:A", date_format)
+            await worksheet.format("G3:G", date_format)
 
     async def get_data(self):
         """

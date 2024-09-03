@@ -13,9 +13,14 @@ date_format = {  # паттерн для преобразования числа
     "numberFormat": {"type": "DATE", "pattern": "dd.mm.yyyy"}
 }
 
+currency_format = {  # паттерн для преобразования числа суммы в рубли
+    "numberFormat": {"type": "CURRENCY", "pattern": "₽ #,###"}
+}
+
 
 async def get_today_moscow_time():
     """Функция для получения текущей даты"""
+
     moscow_tz = pytz.timezone("Europe/Moscow")
     today = datetime.now(moscow_tz)
     formatted_date = today.strftime("%d.%m.%Y")
@@ -24,6 +29,7 @@ async def get_today_moscow_time():
 
 def get_credentials():
     """Функция для получения данных для авторизации в Google Sheets"""
+
     creds = Credentials.from_service_account_file(Config.google_sheets_credentials_file)
     scoped = creds.with_scopes(
         [
@@ -50,16 +56,19 @@ class GoogleSheetsManager:
 
     async def initialize_google_sheets(self):
         """Инициализация в Google Sheets"""
+
         agcm = gspread_asyncio.AsyncioGspreadClientManager(get_credentials)
         self.agc = await agcm.authorize()
         return self.agc
 
     async def add_payment_to_sheet(self, payment_info):
         """Добавление счёта в таблицу"""
+
         try:
             spreadsheet = await self.agc.open_by_key(self.sheets_spreadsheet_id)
             worksheet = await spreadsheet.get_worksheet_by_id(0)
             self.logger.info(f"Открытие листа: {self.sheets_spreadsheet_id}")
+
         except Exception as e:
             self.logger.error(f"Ошибка при открытии или доступе к листу: {e}")
             return
@@ -84,13 +93,16 @@ class GoogleSheetsManager:
             ]
             await worksheet.append_row(row_data, value_input_option="USER_ENTERED")
             self.logger.info(f"Добавлена строка: {row_data}")
-            await worksheet.format("A3:A", date_format)
-            await worksheet.format("G3:G", date_format)
+        await worksheet.format("A3:A", date_format)
+        await worksheet.format("B3:B", currency_format)
+        await worksheet.format("G3:G", date_format)
+
 
     async def get_data(self):
         """
         Получение списка статей и списка словарей данных из таблицы "категории"
         """
+
         spreadsheet = await self.agc.open_by_key(self.sheets_spreadsheet_id)
         worksheet = await spreadsheet.get_worksheet_by_id(self.categories_sheet_id)
 

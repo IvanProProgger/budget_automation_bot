@@ -9,19 +9,16 @@ import pandas as pd
 from config import Config
 
 
-date_format = {
-        "numberFormat": {
-            "type": "DATE",
-            "pattern": "dd.mm.yyyy"
-        }
-    }
+date_format = {  # паттерн для преобразования числа даты в необходимый формат
+    "numberFormat": {"type": "DATE", "pattern": "dd.mm.yyyy"}
+}
+
 
 async def get_today_moscow_time():
     """Функция для получения текущей даты"""
     moscow_tz = pytz.timezone("Europe/Moscow")
     today = datetime.now(moscow_tz)
-    formatted_date = today.strftime('%d.%m.%Y')
-    timestamp_today = today.timestamp()
+    formatted_date = today.strftime("%d.%m.%Y")
     return formatted_date
 
 
@@ -39,7 +36,7 @@ def get_credentials():
 
 
 class GoogleSheetsManager:
-    """ "Класс для обработки Google Sheets таблиц"""
+    """Класс для обработки Google Sheets таблиц."""
 
     def __init__(self):
         self.sheets_spreadsheet_id = Config.google_sheets_spreadsheet_id
@@ -69,8 +66,10 @@ class GoogleSheetsManager:
 
         today_date = await get_today_moscow_time()
         period = payment_info["period"].split(" ")
-        months = [datetime.strptime(f"01.{a}", "%d.%m.%y").strftime("%d.%m.%Y")
-                  for a in period]
+        months = [
+            datetime.strptime(f"01.{a}", "%d.%m.%y").strftime("%d.%m.%Y")
+            for a in period
+        ]
         total_sum = payment_info["amount"] / len(months)
         for month in months:
             row_data = [
@@ -83,7 +82,7 @@ class GoogleSheetsManager:
                 month,
                 payment_info["payment_method"],
             ]
-            await worksheet.append_row(row_data, value_input_option='USER_ENTERED')
+            await worksheet.append_row(row_data, value_input_option="USER_ENTERED")
             self.logger.info(f"Добавлена строка: {row_data}")
             await worksheet.format("A3:A", date_format)
             await worksheet.format("G3:G", date_format)

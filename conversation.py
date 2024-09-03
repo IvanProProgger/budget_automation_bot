@@ -1,16 +1,10 @@
 import logging
 import re
 
-from telegram.constants import MessageEntityType
-
-
 from handlers import submit_record_command
 from datetime import datetime
-from telegram import Update, ForceReply, InlineKeyboardButton, InlineKeyboardMarkup, Bot, User, MessageEntity, Message
-from telegram.ext import (
-    ConversationHandler,
-    ContextTypes
-)
+from telegram import Update, ForceReply, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ConversationHandler, ContextTypes
 
 from sheets import GoogleSheetsManager
 
@@ -36,7 +30,7 @@ payment_types = ["нал", "безнал", "крипта"]
 
 
 async def create_keyboard(massive):
-    """Функция для создания клавиатуры. Каждый элемент создаётся с новой строки."""
+    """Функция для создания клавиатуры. Каждый кнопка создаётся с новой строки."""
     keyboard = []
 
     for number, item in enumerate(massive):
@@ -65,7 +59,7 @@ async def enter_record(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 
 
 async def input_sum(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Обработка ввода суммы и выбор категории."""
+    """Обработчик ввода суммы и выбор категории."""
     user_sum = update.message.text
     pattern = r"^[0-9]+(?:\.[0-9]+)?$"
 
@@ -92,7 +86,7 @@ async def input_sum(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 
 async def input_item(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Обработка выбора категории."""
+    """Обработчик выбора категории платежа."""
     query = update.callback_query
     selected_item = context.user_data["items"][int(query.data)]
     await query.edit_message_text(f"Выбрана статья расхода: {selected_item}")
@@ -146,7 +140,7 @@ async def input_item(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 
 async def input_group(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Обработка выбора группы расходов."""
+    """Обработчик выбора группы расходов."""
     query = update.callback_query
     selected_group = context.user_data["groups"][int(query.data)]
     await query.edit_message_text(f"Выбрана группа расхода: {selected_group}")
@@ -162,9 +156,9 @@ async def input_group(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         selected_partner = context.user_data["partners"][0]
         context.user_data["partner"] = selected_partner
         del context.user_data["partners"]
-
-        chat_id = update.effective_chat.id
-        await context.bot.send_message(chat_id, f"Выбран партнёр: {selected_partner}")
+        await context.bot.send_message(
+            context.user_data["chat_id"], f"Выбран партнёр: {selected_partner}"
+        )
 
         await query.message.reply_text(
             "Введите комментарий для отчёта:",
@@ -179,6 +173,7 @@ async def input_group(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
 
 
 async def input_partner(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Обработчик выбора партнёра к группе расходов платежа и создание цитирования для ввода комментария"""
     query = update.callback_query
     selected_partner = context.user_data["partners"][int(query.data)]
     await query.edit_message_text(f"Выбран партнёр: {selected_partner}")
@@ -194,6 +189,7 @@ async def input_partner(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 
 
 async def input_comment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Обработчик ввода комментария к платежу и создание цитирования для ввода дат"""
     user_comment = update.message.text
 
     pattern = r"^\S.*"
@@ -215,22 +211,24 @@ async def input_comment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 
 
 async def input_dates(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Обработчик ввода дат начисления платежа и создание кнопок для выбора типа оплаты"""
     user_dates = update.message.text
 
     try:
         pattern = r"(\d{2}\.\d{2}\s*)+"
         match = re.search(pattern, user_dates)
         if not re.fullmatch(pattern, user_dates):
-            raise ValueError("Неверный формат дат. Введите даты начисления платежей в формате mm.yy строго через"
-                             " пробел")
+            raise ValueError("Неверный формат дат.")
         period_dates = match.group(0).split()
-        period = [datetime.strptime(f"01.{date}", "%d.%m.%y").strftime("%Y-%m-%d")
-                  for date in period_dates]
+        _ = [
+            datetime.strptime(f"01.{date}", "%d.%m.%y").strftime("%Y-%m-%d")
+            for date in period_dates
+        ]
 
-    except ValueError as e:
+    except ValueError:
         await update.message.reply_text(
             "Неверный формат дат. Введите даты начисления платежей в формате mm.yy строго через"
-                             " пробел",
+            " пробел",
             reply_markup=ForceReply(selective=True),
         )
         return INPUT_DATES
@@ -248,7 +246,7 @@ async def input_dates(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
 
 
 async def input_payment_type(update: Update, context: ContextTypes) -> int:
-
+    """Обработчик выбора типа оплаты и создание итогового сообщения для подтверждения или отклонения заявки на платёж"""
     query = update.callback_query
     await query.answer()
     payment_type = payment_types[int(query.data)]
@@ -282,19 +280,19 @@ async def input_payment_type(update: Update, context: ContextTypes) -> int:
 
 
 async def confirm_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Обработка подтверждения команды."""
+    """Обработчик подтверждения и отклонения итоговой команды."""
     query = update.callback_query
     await query.answer()
     await query.edit_message_reply_markup(reply_markup=None)
 
     if query.data == "Подтвердить":
-        context.args = context.user_data.get('final_command').split()
+        context.args = context.user_data.get("final_command").split()
         await submit_record_command(update, context)
         return ConversationHandler.END
 
     elif query.data == "Отмена":
-        await query.edit_message_text(text="Отмена операции.")
-
+        # await query.edit_message_text(text="Отмена операции.")
+        await stop_dialog(update, context)
     return ConversationHandler.END
 
 

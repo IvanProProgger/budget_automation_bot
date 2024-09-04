@@ -1,6 +1,7 @@
 import gspread_asyncio
 from google.oauth2.service_account import Credentials
 from datetime import datetime
+from decimal import Decimal, ROUND_HALF_UP
 
 import logging
 import pytz
@@ -14,7 +15,7 @@ date_format = {  # паттерн для преобразования числа
 }
 
 currency_format = {  # паттерн для преобразования числа суммы в рубли
-    "numberFormat": {"type": "CURRENCY", "pattern": "₽ #,###"}
+    "numberFormat": {"type": "CURRENCY", "pattern": "₽ #,###.0000000000"}
 }
 
 
@@ -79,11 +80,13 @@ class GoogleSheetsManager:
             datetime.strptime(f"01.{a}", "%d.%m.%y").strftime("%d.%m.%Y")
             for a in period
         ]
-        total_sum = payment_info["amount"] / len(months)
+        total_sum = Decimal(payment_info["amount"]) / Decimal(len(months))
+        logging.info(total_sum)
+        rounded_sum = float(total_sum.quantize(Decimal('0.0000000001'), rounding=ROUND_HALF_UP))
         for month in months:
             row_data = [
                 today_date,
-                total_sum,
+                rounded_sum,
                 payment_info["expense_item"],
                 payment_info["expense_group"],
                 payment_info["partner"],

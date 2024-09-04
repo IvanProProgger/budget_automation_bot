@@ -19,4 +19,6 @@ COPY . .
 
 RUN rm -rf /app/__pycache__*
 
-CMD ["python", "main.py"]
+ENTRYPOINT ["python"]
+
+CMD ["main.py"]

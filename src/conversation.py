@@ -65,6 +65,11 @@ async def input_sum(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
     if not re.fullmatch(pattern, user_sum):
         await update.message.reply_text("Некорректная сумма. Попробуйте ещё раз.")
+        bot_message = await update.message.reply_text(
+            "Введите сумму:",
+            reply_markup=ForceReply(selective=True),
+        )
+        context.user_data["enter_sum_message_id"] = bot_message.message_id
         return INPUT_SUM
 
     del context.user_data["enter_sum_message_id"]
@@ -222,16 +227,16 @@ async def input_dates(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         pattern = r"(\d{2}\.\d{2}\s*)+"
         match = re.search(pattern, user_dates)
         if not re.fullmatch(pattern, user_dates):
-            raise ValueError("Неверный формат дат.")
+            await update.message.reply_text("Неверный формат дат.")
         period_dates = match.group(0).split()
         _ = [
             datetime.strptime(f"01.{date}", "%d.%m.%y").strftime("%Y-%m-%d")
             for date in period_dates
         ]
 
-    except ValueError:
+    except Exception:
         await update.message.reply_text(
-            "Неверный формат дат. Введите даты начисления платежей в формате mm.yy строго через"
+            f"Неверный формат дат. Введите даты начисления платежей в формате mm.yy строго через"
             " пробел",
             reply_markup=ForceReply(selective=True),
         )
@@ -244,7 +249,6 @@ async def input_dates(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     await update.message.from_user.delete_message(update.message.message_id)
 
     reply_markup = await create_keyboard(payment_types)
-
     await update.message.reply_text("Выберите тип оплаты:", reply_markup=reply_markup)
 
     return INPUT_PAYMENT_TYPE
@@ -292,13 +296,13 @@ async def confirm_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     if query.data == "Подтвердить":
         context.args = context.user_data.get("final_command").split()
+        context.user_data.clear()
         logger.info(f"Платёж подтверждён @{query.from_user.username}")
         await submit_record_command(update, context)
 
     elif query.data == "Отмена":
-        # await query.edit_message_text(text="Отмена операции.")
+        logger.info(f"Платёж отменён @{query.from_user.username}")
         await stop_dialog(update, context)
-
 
 async def stop_dialog(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Обработчик команды /stop."""

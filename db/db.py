@@ -65,8 +65,8 @@ class ApprovalDB:
             logger.info("Record inserted successfully.")
             return self._cursor.lastrowid
         except Exception as e:
-            logger.error(f"Failed to insert record: {e}")
-            raise
+            raise RuntimeError(f"Failed to insert record: {e}")
+
 
     async def get_row_by_id(self, row_id):
         try:
@@ -97,8 +97,7 @@ class ApprovalDB:
                 )
             )
         except Exception as e:
-            logger.error(f"Failed to fetch record: {e}")
-            return None
+            raise RuntimeError(f"Failed to fetch record: {e}")
 
     async def update_row_by_id(self, row_id, updates):
         try:
@@ -111,10 +110,7 @@ class ApprovalDB:
             await self._conn.commit()
             logger.info("Record updated successfully.")
         except Exception as e:
-            logger.error(
-                f"Failed to update record: {e}. Approval ID: {row_id}, Updates: {updates}"
-            )
-            raise
+            raise RuntimeError(f"Failed to update record: {e}. Approval ID: {row_id}, Updates: {updates}")
 
     async def find_not_paid(self):
         try:
@@ -150,6 +146,4 @@ class ApprovalDB:
                 for row in rows
             ]
         except Exception as e:
-            logger.error(f"Failed to fetch records: {e}")
-
-            return []
+            raise RuntimeError(f"Failed to fetch records: {e}")

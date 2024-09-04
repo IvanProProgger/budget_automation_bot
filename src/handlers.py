@@ -69,7 +69,7 @@ async def submit_record_command(
         await context.bot.send_message(
             chat_id=initiator_chat_id, text="Необходимо указать данные для платежа."
         )
-        return
+        raise ValueError(f"Необходимо ввести данные о платеже.")
 
     pattern = (
         r"((?:0|[1-9]\d*)(?:\.\d+)?)\s*;\s*([^;]+)\s*;\s*([^;]+)\s*;\s*([^;]+)\s*;\s*([^;]+)\s*;"
@@ -80,9 +80,15 @@ async def submit_record_command(
     if not match:
         await context.bot.send_message(
             chat_id=initiator_chat_id,
-            text="Неверный формат аргументов. Пожалуйста, следуйте указанному формату.",
+            text="Неверный формат аргументов. Пожалуйста, следуйте указанному формату.\n"
+            "1)Сумма счёта: положительное число (возможно с плавающей точкой)\n"
+            "2)Статья расхода: любая строка из букв и цифр\n"
+            "3)Группа расхода: любая строка из букв и цифр\n"
+            "4)Партнёр: любая строка из букв и цифр\n"
+            "5)Дата: как минимум 2 даты; дата оплаты и дата(ы) начисления платежа\n"
+            "6)Форма оплаты: любая строка из букв и цифр\n"
+            "7)Комментарий к платежу: любая строка из букв и цифр\n"
         )
-        return
 
     try:
         period_dates = match.group(6).split()
@@ -90,12 +96,11 @@ async def submit_record_command(
             datetime.strptime(date, "%m.%y").strftime("%m.%Y") for date in period_dates
         ]
 
-    except ValueError as e:
+    except Exception as e:
         await context.bot.send_message(
             chat_id=initiator_chat_id,
-            text=f"Введены неверные даты: {e}. "
-            f'Даты вводятся в формате mm.yy. строго через пробел(например: "08.22 10.22").'
-            f" Пожалуйста, следуйте указанному формату.",
+            text=f'Ошибка {e}. Введены неверные даты. Даты вводятся в формате mm.yy. '
+                 f'строго через пробел(например: "08.22 10.22"). Пожалуйста, следуйте указанному формату.'
         )
         return
 
@@ -117,12 +122,7 @@ async def submit_record_command(
         async with db:
             approval_id = await db.insert_record(record_dict)
     except Exception as e:
-        logger.error(f"Произошла ошибка при добавлении счёта в базу данных. {e}")
-        await context.bot.send_message(
-            chat_id=initiator_chat_id,
-            text=f"Произошла ошибка при добавлении счёта в базу данных. {e}",
-        )
-        return
+        raise RuntimeError(f"Произошла ошибка при добавлении счёта в базу данных. {e}")
 
     await create_and_send_approval_message(
         approval_id, initiator_chat_id, record_dict, "head", context=context
@@ -140,11 +140,11 @@ async def reject_record_command(
     row_id = context.args
 
     if not row_id:
-        await update.message.reply_text("Пожалуйста, укажите id заявки!")
+        await context.bot.send_message(chat_id=update.effective_chat.id, text="Пожалуйста, укажите id заявки!")
         return
 
     if len(row_id) > 1:
-        await update.message.reply_text("Можно указать только 1 заявку")
+        await context.bot.send_message(chat_id=update.effective_chat.id, text="Можно указать только 1 заявку!")
         return
 
     row_id = row_id[0]
@@ -153,8 +153,7 @@ async def reject_record_command(
         result = await db.get_row_by_id(row_id)
 
         if not result:
-            await update.message.reply_text(f"Запись с id {row_id} не найдена.")
-            return
+            raise RuntimeError(f"Запись с id: {row_id} не найдена.")
 
         await db.update_row_by_id(row_id, {"status": "Rejected"})
 
@@ -247,23 +246,17 @@ async def process_pay(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         approval_id = response_list[1]
 
     except Exception as e:
-        logger.error(f"Ошибка при обработке данных: {e}")
-        await update.callback_query.answer(
-            "Произошла ошибка. Пожалуйста, попробуйте снова."
-        )
-
-        return
+        raise RuntimeError(f'Ошибка считывания данных с кнопки "Оплачено". Ошибка: {e}')
 
     async with db:
         record = await db.get_row_by_id(approval_id)
 
         if not record:
-            await update.message.reply_text("Запись не найдена.")
-            logger.error(f"Запись {approval_id} для оплаты не найдена в таблице")
-            return
+            raise RuntimeError(f"Запись {approval_id} для оплаты не найдена в таблице")
 
     async with db:
         await db.update_row_by_id(approval_id, {"status": "Paid"})
+
     await update.callback_query.edit_message_text(
         text=f"Заявка {approval_id} оплачена.", reply_markup=InlineKeyboardMarkup([])
     )
@@ -286,20 +279,17 @@ async def process_approval(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
         async with db:
             record = await db.get_row_by_id(approval_id)
+            if not record:
+                raise RuntimeError("Запись в таблице с данным id не найдена.")
+
             approved_users_in_db = record["approved_by"]
             if approved_users_in_db:
                 approved_users = f"{approved_users_in_db}, {approved_user}"
             else:
                 approved_users = approved_user
 
-        if not record:
-            await update.message.reply_text("Запись в таблице с данным id не найдена.")
-            logger.error(f"Запись в таблице {approval_id} не найдена.")
-            return
-
     except Exception as e:
-        logger.error(f"Ошибка обработки ответа пользователем. Ошибка: {e}")
-        return
+        raise RuntimeError(f'Ошибка обработки кнопок "Одобрить" и "Отклонить". Ошибка: {e}')
 
     await handle_head_approval(
         context,
@@ -362,7 +352,6 @@ async def reject_payment(
                     "status": "Rejected",
                 },
             )
-            logger.info(f"Заявка {approval_id} отклонена.")
         await update.callback_query.edit_message_text(
             text=f"Заявка {approval_id} отклонена.",
             reply_markup=InlineKeyboardMarkup([]),
@@ -478,18 +467,20 @@ async def approve_payment(
 async def error_callback(update: Update, context: CallbackContext) -> None:
     """Обработчик ошибок для логирования и уведомления пользователя с детальной информацией об ошибке."""
 
-    logger.exception("Произошла ошибка:")
     error_text = str(context.error)
-    message_text = f'Произошла ошибка: "{error_text}." Попробуйте снова позже.'
+    logger.error(f"{error_text}")
+    message_text = f'{error_text}'
     if update:
-
         try:
-            await context.bot.send_message(
-                chat_id=update.effective_chat.id, text=message_text
-            )
+            chat_ids = [update.effective_chat.id, Config.developer_chat_id]
+            await send_message_to_chats(chat_ids=chat_ids, text=message_text, context=context)
+            return
 
         except Exception as e:
-            logger.error(f"Ошибка при отправке уведомления об ошибке: {e}.")
+            text = f"Ошибка при отправке уведомления об ошибке: {e}."
+            logger.error(text)
+            return
+
 
 
 async def show_not_paid(update: Update) -> None:
@@ -511,6 +502,7 @@ async def show_not_paid(update: Update) -> None:
 
     if final_text:
         await update.message.reply_text(final_text)
-
     else:
         await update.message.reply_text("Заявок не обнаружено")
+
+    return

@@ -8,7 +8,6 @@ import pytz
 import pandas as pd
 
 from config.config import Config
-
 from config.logging_config import logger
 
 
@@ -57,10 +56,12 @@ class GoogleSheetsManager:
 
     async def initialize_google_sheets(self):
         """Инициализация в Google Sheets"""
-
-        agcm = gspread_asyncio.AsyncioGspreadClientManager(get_credentials)
-        self.agc = await agcm.authorize()
-        return self.agc
+        try:
+            agcm = gspread_asyncio.AsyncioGspreadClientManager(get_credentials)
+            self.agc = await agcm.authorize()
+            return self.agc
+        except Exception as e:
+            raise RuntimeError(f"Не удалось авторизоваться в сервисе Google Sheet. Ошибка: {e}")
 
     async def add_payment_to_sheet(self, payment_info):
         """Добавление счёта в таблицу"""
@@ -71,8 +72,7 @@ class GoogleSheetsManager:
             logger.info(f"Открытие листа: {self.sheets_spreadsheet_id}")
 
         except Exception as e:
-            logger.error(f"Ошибка при открытии или доступе к листу: {e}")
-            return
+            raise RuntimeError(f"Ошибка при открытии или доступе к листу: {e}")
 
         today_date = await get_today_moscow_time()
         period = payment_info["period"].split(" ")
@@ -105,9 +105,11 @@ class GoogleSheetsManager:
         """
         Получение списка статей и списка словарей данных из таблицы "категории"
         """
-
-        spreadsheet = await self.agc.open_by_key(self.sheets_spreadsheet_id)
-        worksheet = await spreadsheet.get_worksheet_by_id(self.categories_sheet_id)
+        try:
+            spreadsheet = await self.agc.open_by_key(self.sheets_spreadsheet_id)
+            worksheet = await spreadsheet.get_worksheet_by_id(self.categories_sheet_id)
+        except Exception as e:
+            raise RuntimeError(f'Ошибка получения данных с листа "категории". Ошибка: {e}')
 
         df = pd.DataFrame(await worksheet.get_all_records())
         unique_items = df["Статья"].unique()

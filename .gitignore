@@ -5,5 +5,4 @@ data/credentials.json
 /__pycache__/
 approvals.db
 logs/**/*.log
-__init__.py
 **/__pycache__/

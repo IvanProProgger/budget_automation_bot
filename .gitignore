@@ -1,8 +1,8 @@
-venv
+venv/
 config/config.py
 config/.env
 data/credentials.json
 .idea
 /__pycache__/
 approvals.db
-./logs/
+logs/**/*.log

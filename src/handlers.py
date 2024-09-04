@@ -1,4 +1,3 @@
-import logging
 import re
 import textwrap
 
@@ -7,14 +6,10 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CallbackContext, ContextTypes
 
 
-from config import Config
+from config.config import Config
 from db import db
 from sheets import GoogleSheetsManager
-
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
-logger = logging.getLogger(__name__)
+from config.logging_config import logger
 
 
 async def chat_ids_department(department) -> list[str]:
@@ -70,7 +65,6 @@ async def submit_record_command(
     """
 
     initiator_chat_id = update.effective_chat.id
-    context.user_data["initiator_chat_id"] = initiator_chat_id
     if not context.args:
         await context.bot.send_message(
             chat_id=initiator_chat_id, text="Необходимо указать данные для платежа."
@@ -123,6 +117,7 @@ async def submit_record_command(
         async with db:
             approval_id = await db.insert_record(record_dict)
     except Exception as e:
+        logger.error(f"Произошла ошибка при добавлении счёта в базу данных. {e}")
         await context.bot.send_message(
             chat_id=initiator_chat_id,
             text=f"Произошла ошибка при добавлении счёта в базу данных. {e}",
@@ -252,7 +247,7 @@ async def process_pay(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         approval_id = response_list[1]
 
     except Exception as e:
-        logging.error(f"Ошибка при обработке данных: {e}")
+        logger.error(f"Ошибка при обработке данных: {e}")
         await update.callback_query.answer(
             "Произошла ошибка. Пожалуйста, попробуйте снова."
         )
@@ -264,6 +259,7 @@ async def process_pay(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
         if not record:
             await update.message.reply_text("Запись не найдена.")
+            logger.error(f"Запись {approval_id} для оплаты не найдена в таблице")
             return
 
     async with db:
@@ -298,11 +294,12 @@ async def process_approval(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
         if not record:
             await update.message.reply_text("Запись в таблице с данным id не найдена.")
-
+            logger.error(f"Запись в таблице {approval_id} не найдена.")
             return
 
     except Exception as e:
-        raise e
+        logger.error(f"Ошибка обработки ответа пользователем. Ошибка: {e}")
+        return
 
     await handle_head_approval(
         context,
@@ -365,6 +362,7 @@ async def reject_payment(
                     "status": "Rejected",
                 },
             )
+            logger.info(f"Заявка {approval_id} отклонена.")
         await update.callback_query.edit_message_text(
             text=f"Заявка {approval_id} отклонена.",
             reply_markup=InlineKeyboardMarkup([]),

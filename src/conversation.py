@@ -8,10 +8,8 @@ from telegram.ext import ConversationHandler, ContextTypes
 
 from sheets import GoogleSheetsManager
 
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
-logger = logging.getLogger(__name__)
+
+from config.logging_config import logger
 
 
 (
@@ -89,6 +87,7 @@ async def input_item(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Обработчик выбора категории платежа."""
     query = update.callback_query
     selected_item = context.user_data["items"][int(query.data)]
+    logger.info(f"Выбрана статья расхода: {selected_item}")
     await query.edit_message_text(f"Выбрана статья расхода: {selected_item}")
 
     context.user_data["item"] = selected_item
@@ -101,6 +100,7 @@ async def input_item(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if len(groups) == 1:
 
         selected_group = context.user_data["groups"][0]
+        logger.info(f"Выбрана группа расхода: {selected_group}")
         context.user_data["group"] = selected_group
         partners = context.user_data["options"].get(selected_group)
         context.user_data["partners"] = context.user_data["options"].get(selected_group)
@@ -113,6 +113,7 @@ async def input_item(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
         if len(partners) == 1:
             selected_partner = context.user_data["partners"][0]
+            logger.info(f"Выбран партнёр расхода: {selected_partner}")
             context.user_data["partner"] = selected_partner
             del context.user_data["partners"]
 
@@ -143,17 +144,18 @@ async def input_group(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     """Обработчик выбора группы расходов."""
     query = update.callback_query
     selected_group = context.user_data["groups"][int(query.data)]
+    logger.info(f"Выбрана группа расхода: {selected_group}")
     await query.edit_message_text(f"Выбрана группа расхода: {selected_group}")
 
     context.user_data["group"] = selected_group
     partners = context.user_data["options"].get(selected_group)
     context.user_data["partners"] = partners
-    logger.info(context.user_data["partners"])
     del context.user_data["options"]
     del context.user_data["groups"]
 
     if len(partners) == 1:
         selected_partner = context.user_data["partners"][0]
+        logger.info(f"Выбран партнёр расхода: {selected_partner}")
         context.user_data["partner"] = selected_partner
         del context.user_data["partners"]
         await context.bot.send_message(
@@ -176,6 +178,7 @@ async def input_partner(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     """Обработчик выбора партнёра к группе расходов платежа и создание цитирования для ввода комментария"""
     query = update.callback_query
     selected_partner = context.user_data["partners"][int(query.data)]
+    logger.info(f"Выбран партнёр расхода: {selected_partner}")
     await query.edit_message_text(f"Выбран партнёр: {selected_partner}")
 
     context.user_data["partner"] = selected_partner
@@ -197,6 +200,7 @@ async def input_comment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         await update.message.reply_text("Некорректный комментарий. Попробуйте ещё раз")
         return ConversationHandler.END
 
+    logger.info(f"Введён комментарий {user_comment}")
     context.user_data["comment"] = user_comment
 
     await update.message.from_user.delete_message(update.message.message_id)
@@ -234,6 +238,7 @@ async def input_dates(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         return INPUT_DATES
 
     context.user_data["dates"] = user_dates
+    logger.info(f"Введены даты: {user_dates}")
     await update.message.reply_text(f"Введены даты: {user_dates}")
 
     await update.message.from_user.delete_message(update.message.message_id)
@@ -250,7 +255,7 @@ async def input_payment_type(update: Update, context: ContextTypes) -> int:
     query = update.callback_query
     await query.answer()
     payment_type = payment_types[int(query.data)]
-
+    logger.info(f"Выбран тип платежа: {payment_type}")
     await query.edit_message_text(f"Выбран тип платежа: {payment_type}")
 
     final_command = (
@@ -279,7 +284,7 @@ async def input_payment_type(update: Update, context: ContextTypes) -> int:
     return CONFIRM_COMMAND
 
 
-async def confirm_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+async def confirm_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик подтверждения и отклонения итоговой команды."""
     query = update.callback_query
     await query.answer()
@@ -287,13 +292,12 @@ async def confirm_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     if query.data == "Подтвердить":
         context.args = context.user_data.get("final_command").split()
+        logger.info(f"Платёж подтверждён @{query.from_user.username}")
         await submit_record_command(update, context)
-        return ConversationHandler.END
 
     elif query.data == "Отмена":
         # await query.edit_message_text(text="Отмена операции.")
         await stop_dialog(update, context)
-    return ConversationHandler.END
 
 
 async def stop_dialog(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:

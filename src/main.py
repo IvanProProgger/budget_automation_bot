@@ -4,10 +4,10 @@ from telegram.ext import (
     CallbackQueryHandler,
     ConversationHandler,
     MessageHandler,
-    filters,
+    filters
 )
 
-from config import Config
+from config.config import Config
 from conversation import (
     enter_record,
     input_sum,

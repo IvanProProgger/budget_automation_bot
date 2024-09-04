@@ -1,9 +1,7 @@
-import logging
 import aiosqlite
 
-from config import Config
-
-logging.basicConfig(level=logging.INFO)
+from config.config import Config
+from config.logging_config import logger
 
 
 class ApprovalDB:
@@ -15,13 +13,13 @@ class ApprovalDB:
     async def __aenter__(self):
         self._conn = await aiosqlite.connect(self.db_file)
         self._cursor = await self._conn.cursor()
-        logging.info("Connected to database.")
+        logger.info("Connected to database.")
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         if self._conn:
             await self._conn.close()
-            logging.info("Disconnected from database.")
+            logger.info("Disconnected from database.")
         return True
 
     async def create_table(self):
@@ -49,9 +47,9 @@ class ApprovalDB:
                                            approved_by TEXT)"""
             )
             await self._conn.commit()
-            logging.info("Таблица 'approvals' создана.")
+            logger.info("Таблица 'approvals' создана.")
         else:
-            logging.info("Таблица 'approvals' уже существует.")
+            logger.info("Таблица 'approvals' уже существует.")
 
     async def insert_record(self, record):
         """
@@ -64,10 +62,10 @@ class ApprovalDB:
                 list(record.values()),
             )
             await self._conn.commit()
-            logging.info("Record inserted successfully.")
+            logger.info("Record inserted successfully.")
             return self._cursor.lastrowid
         except Exception as e:
-            logging.error(f"Failed to insert record: {e}")
+            logger.error(f"Failed to insert record: {e}")
             raise
 
     async def get_row_by_id(self, row_id):
@@ -78,6 +76,7 @@ class ApprovalDB:
             row = await result.fetchone()
             if row is None:
                 return None
+            logger.info("Row data received successfully")
             return dict(
                 zip(
                     (
@@ -98,7 +97,7 @@ class ApprovalDB:
                 )
             )
         except Exception as e:
-            logging.error(f"Failed to fetch record: {e}")
+            logger.error(f"Failed to fetch record: {e}")
             return None
 
     async def update_row_by_id(self, row_id, updates):
@@ -110,9 +109,9 @@ class ApprovalDB:
                 list(updates.values()) + [row_id],
             )
             await self._conn.commit()
-            logging.info("Record updated successfully.")
+            logger.info("Record updated successfully.")
         except Exception as e:
-            logging.error(
+            logger.error(
                 f"Failed to update record: {e}. Approval ID: {row_id}, Updates: {updates}"
             )
             raise
@@ -126,6 +125,7 @@ class ApprovalDB:
             rows = await result.fetchall()
             if not rows:
                 return []
+            logger.info("Not paid records found successfully.")
 
             return [
                 dict(
@@ -150,6 +150,6 @@ class ApprovalDB:
                 for row in rows
             ]
         except Exception as e:
-            logging.error(f"Failed to fetch records: {e}")
+            logger.error(f"Failed to fetch records: {e}")
 
             return []

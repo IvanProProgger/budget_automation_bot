@@ -7,7 +7,9 @@ import logging
 import pytz
 import pandas as pd
 
-from config import Config
+from config.config import Config
+
+from config.logging_config import logger
 
 
 date_format = {  # паттерн для преобразования числа даты в необходимый формат
@@ -51,8 +53,6 @@ class GoogleSheetsManager:
         self.categories_sheet_id = Config.google_sheets_categories_sheet_id
         self.options_dict = None
         self.items = None
-        self.logger = logging.getLogger(__name__)
-        self.logger.setLevel(logging.INFO)
         self.agc = None
 
     async def initialize_google_sheets(self):
@@ -68,10 +68,10 @@ class GoogleSheetsManager:
         try:
             spreadsheet = await self.agc.open_by_key(self.sheets_spreadsheet_id)
             worksheet = await spreadsheet.get_worksheet_by_id(0)
-            self.logger.info(f"Открытие листа: {self.sheets_spreadsheet_id}")
+            logger.info(f"Открытие листа: {self.sheets_spreadsheet_id}")
 
         except Exception as e:
-            self.logger.error(f"Ошибка при открытии или доступе к листу: {e}")
+            logger.error(f"Ошибка при открытии или доступе к листу: {e}")
             return
 
         today_date = await get_today_moscow_time()
@@ -95,7 +95,7 @@ class GoogleSheetsManager:
                 payment_info["payment_method"],
             ]
             await worksheet.append_row(row_data, value_input_option="USER_ENTERED")
-            self.logger.info(f"Добавлена строка: {row_data}")
+            logger.info(f"Добавлена строка: {row_data}")
         await worksheet.format("A3:A", date_format)
         await worksheet.format("B3:B", currency_format)
         await worksheet.format("G3:G", date_format)

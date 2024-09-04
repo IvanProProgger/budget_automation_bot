@@ -6,3 +6,4 @@ data/credentials.json
 approvals.db
 logs/**/*.log
 __init__.py
+**/__pycache__/
